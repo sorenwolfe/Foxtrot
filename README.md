@@ -105,6 +105,21 @@ and say what you were doing, because that's the bug I most want to hear about.
 
 ---
 
+## Working on it
+
+The icon lives only in this repository, at `images/icon.png`. It is excluded from `git archive`
+via `.gitattributes`, so a source archive can never carry a copy that overwrites it — that went
+wrong once already.
+
+Two things the build checks before it will pass:
+
+- The icon is a square PNG no larger than 512×512. Dalamud rejects anything bigger and shows a
+  "?" in the plugin list, with nothing anywhere to say why.
+- The version in `Foxtrot.csproj` matches the one in `repo.json`. If they disagree, nobody is
+  offered the update and nothing looks broken.
+
+---
+
 ## Licence
 
 AGPL-3.0-or-later. Full text in `LICENSE`.

@@ -20,6 +20,40 @@ jobs:
           dotnet-version: '10.0.x'
 
       # CI has no XIVLauncher install, so grab the assemblies Dalamud ships and point the SDK at them.
+      # Dalamud rejects an icon larger than 512x512 outright and shows a "?" in the plugin list
+      # instead. Nothing warns you: the URL still returns the file, the manifest is still valid,
+      # and the only symptom is a missing picture. Cheaper to fail here.
+      - name: Check the icon
+        shell: pwsh
+        run: |
+          $icon = "images/icon.png"
+          if (-not (Test-Path $icon)) { throw "$icon is missing, but repo.json points at it." }
+
+          $bytes = [System.IO.File]::ReadAllBytes($icon)
+          if ($bytes.Length -lt 24) { throw "$icon is too small to be a PNG." }
+
+          $png = [byte[]](137,80,78,71,13,10,26,10)
+          for ($i = 0; $i -lt 8; $i++) {
+            if ($bytes[$i] -ne $png[$i]) { throw "$icon is not a PNG." }
+          }
+
+          # Width and height are big-endian at offsets 16 and 20, straight after the IHDR tag.
+          $width  = [System.BitConverter]::ToUInt32(($bytes[19..16]), 0)
+          $height = [System.BitConverter]::ToUInt32(($bytes[23..20]), 0)
+          $kb = [math]::Round($bytes.Length / 1KB)
+
+          Write-Host "$icon is ${width}x${height}, ${kb} KB"
+
+          if ($width -gt 512 -or $height -gt 512) {
+            throw "Dalamud caps plugin icons at 512x512. This one is ${width}x${height} and will show as a '?' in the plugin list."
+          }
+          if ($width -ne $height) {
+            throw "The icon should be square. This one is ${width}x${height}."
+          }
+          if ($kb -gt 1024) {
+            throw "The icon is ${kb} KB. That is large enough to be worth resaving."
+          }
+
       - name: Fetch Dalamud reference assemblies
         run: |
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/goatcorp/dalamud-distrib/main/latest.zip" -OutFile "$env:RUNNER_TEMP\dalamud.zip"
