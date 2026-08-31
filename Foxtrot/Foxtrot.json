@@ -1,0 +1,26 @@
+{
+  "Name": "Foxtrot",
+  "InternalName": "Foxtrot",
+  "Author": "SorenWolfe",
+  "Punchline": "Hear an orchestrion roll before you go and earn it.",
+  "Description": "The game will sell you an orchestrion roll for a few hundred thousand gil and tell you nothing about what it sounds like. Foxtrot lets you listen first.\n\n• Right-click a roll in your bags and choose Preview.\n• /foxtrot opens a searchable browser of every track in the game, including the ones you do not own yet.\n• A small player with play, stop, its own volume and a running time. Star the ones you like.\n• The zone music fades down while you listen and comes back when you stop — including if you unload the plugin mid-track.\n• Playback goes through the game's own orchestrion call, so it sounds exactly like owning the roll would.",
+  "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/sorenwolfe/Foxtrot",
+  "Tags": [
+    "orchestrion",
+    "music",
+    "preview",
+    "bgm",
+    "quality of life"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IconUrl": "https://raw.githubusercontent.com/sorenwolfe/Foxtrot/main/images/icon.png",
+  "AcceptsFeedback": true
+}

@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*', '[0-9]*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # CI has no XIVLauncher install, so grab the assemblies Dalamud ships and point the SDK at them.
+      - name: Fetch Dalamud reference assemblies
+        run: |
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/goatcorp/dalamud-distrib/main/latest.zip" -OutFile "$env:RUNNER_TEMP\dalamud.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP\dalamud.zip" -DestinationPath "$env:RUNNER_TEMP\dalamud" -Force
+          "DALAMUD_HOME=$env:RUNNER_TEMP\dalamud" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # Tag drives the version, so the manifest matches what people download. v0.1.2 -> 0.1.2.0.
+      - name: Work out the version
+        id: version
+        run: |
+          $tag = "${{ github.ref_name }}" -replace '^v',''
+          $parts = $tag.Split('.')
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $version = ($parts[0..3]) -join '.'
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Building $version from ${{ github.ref_name }}"
+
+      # Build the project, not the solution. The solution only has x64 configurations, which moves
+      # the output to bin\x64\Release and makes the artifact path a guessing game.
+      - name: Build
+        run: dotnet build Foxtrot/Foxtrot.csproj --configuration Release -p:Version=${{ steps.version.outputs.version }}
+
+      # DalamudPackager builds the installable archive itself during a Release build. Find it
+      # rather than assuming where it landed.
+      - name: Find the archive
+        id: archive
+        shell: pwsh
+        run: |
+          $found = Get-ChildItem -Path "Foxtrot\bin" -Recurse -Filter "latest.zip" -ErrorAction SilentlyContinue
+          if (-not $found) {
+            Write-Host "Build output tree:"
+            Get-ChildItem -Path "Foxtrot\bin" -Recurse -Depth 3 | ForEach-Object { Write-Host "  $($_.FullName)" }
+            throw "DalamudPackager produced no latest.zip."
+          }
+          if ($found.Count -gt 1) {
+            $found = $found | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          }
+          $zip = $found.FullName
+          $manifest = Join-Path $found.Directory.FullName "Foxtrot.json"
+          "zip=$zip"           | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "manifest=$manifest" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Archive: $zip"
+
+      # Dalamud wants the DLL and manifest at the root of the archive. Check here so a packaging
+      # mistake fails the release instead of turning up as "Failed to install plugin".
+      - name: Check the archive
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead("${{ steps.archive.outputs.zip }}")
+          $names = $archive.Entries | ForEach-Object { $_.FullName }
+          $archive.Dispose()
+
+          Write-Host "Archive contains:"
+          $names | ForEach-Object { Write-Host "  $_" }
+
+          foreach ($required in @('Foxtrot.dll', 'Foxtrot.json')) {
+            if ($names -notcontains $required) { throw "$required missing from the archive root." }
+          }
+          if ($names -contains 'latest.zip') { throw "Archive contains an archive." }
+
+          $manifest = Get-Content "${{ steps.archive.outputs.manifest }}" -Raw | ConvertFrom-Json
+          if ($manifest.AssemblyVersion -ne "${{ steps.version.outputs.version }}") {
+            throw "Manifest is $($manifest.AssemblyVersion) but the tag says ${{ steps.version.outputs.version }}."
+          }
+
+          $repo = (Get-Content "repo.json" -Raw | ConvertFrom-Json)[0]
+          if ($repo.AssemblyVersion -ne $manifest.AssemblyVersion) {
+            throw "repo.json is $($repo.AssemblyVersion) but this release is $($manifest.AssemblyVersion). Bump repo.json before tagging, or nobody is offered the update."
+          }
+
+          Write-Host "Archive OK, version $($manifest.AssemblyVersion)."
+
+      # Fixed asset name keeps the download URL in repo.json stable across releases.
+      - name: Name the archive
+        run: Copy-Item "${{ steps.archive.outputs.zip }}" "Foxtrot.zip"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Foxtrot.zip
+            ${{ steps.archive.outputs.manifest }}
+          generate_release_notes: true

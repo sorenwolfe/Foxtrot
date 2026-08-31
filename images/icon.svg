@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2456"/>
+      <stop offset="1" stop-color="#16122e"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#eae6f5"/>
+      <stop offset="1" stop-color="#c8c0e0"/>
+    </linearGradient>
+    <linearGradient id="cans" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a5c"/>
+      <stop offset="1" stop-color="#e4562f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#8f7bff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8f7bff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+  <circle cx="256" cy="238" r="190" fill="url(#glow)"/>
+
+  <!-- notes drifting off, tilted the way she is leaning -->
+  <g fill="#ffd479" opacity="0.9">
+    <g transform="translate(388 132) rotate(14)">
+      <ellipse cx="0" cy="26" rx="15" ry="11"/>
+      <rect x="12" y="-30" width="6" height="58" rx="3"/>
+      <path d="M18 -30 q26 8 26 30 q-9 -16 -26 -18 z"/>
+    </g>
+    <g transform="translate(96 176) rotate(-16)" opacity="0.75">
+      <ellipse cx="0" cy="20" rx="11" ry="8"/>
+      <rect x="9" y="-22" width="5" height="44" rx="2.5"/>
+    </g>
+  </g>
+
+  <!-- the whole character leans into the beat -->
+  <g transform="rotate(-7 256 300)">
+
+    <!-- ears -->
+    <g>
+      <path d="M150 168 L128 56 L226 122 Z" fill="url(#hair)"/>
+      <path d="M154 158 L142 90 L204 130 Z" fill="#ff9d78"/>
+      <path d="M362 168 L384 56 L286 122 Z" fill="url(#hair)"/>
+      <path d="M358 158 L370 90 L308 130 Z" fill="#ff9d78"/>
+    </g>
+
+    <!-- hair behind, falling in soft sweeps rather than a stiff bib -->
+    <path d="M256 106 q126 0 126 140 q0 62 -14 108 q-16 -50 -44 -76 q-30 34 -68 34 q-38 0 -68 -34 q-28 26 -44 76 q-14 -46 -14 -108 q0 -140 126 -140 z" fill="url(#hair)"/>
+
+    <!-- face -->
+    <path d="M256 138 q86 0 86 106 q0 88 -86 88 q-86 0 -86 -88 q0 -106 86 -106 z" fill="#ffe6d2"/>
+
+    <!-- fringe -->
+    <path d="M170 214 q6 -80 86 -80 q80 0 86 80 q-30 -40 -86 -40 q-56 0 -86 40 z" fill="url(#hair)"/>
+
+    <!-- eyes, shut and happy -->
+    <path d="M198 244 q16 -20 32 0" stroke="#3a2c4e" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M282 244 q16 -20 32 0" stroke="#3a2c4e" stroke-width="9" fill="none" stroke-linecap="round"/>
+
+    <!-- blush and a grin -->
+    <ellipse cx="196" cy="272" rx="16" ry="9" fill="#ffb3a7" opacity="0.75"/>
+    <ellipse cx="316" cy="272" rx="16" ry="9" fill="#ffb3a7" opacity="0.75"/>
+    <path d="M240 282 q16 16 32 0" stroke="#3a2c4e" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+    <!-- headphones over the top -->
+    <path d="M150 246 q0 -116 106 -116 q106 0 106 116" stroke="#2f2748" stroke-width="26" fill="none" stroke-linecap="round"/>
+    <path d="M150 240 q0 -104 106 -104 q106 0 106 104" stroke="#4a3f72" stroke-width="14" fill="none" stroke-linecap="round"/>
+    <rect x="118" y="228" width="66" height="94" rx="30" fill="url(#cans)"/>
+    <rect x="328" y="228" width="66" height="94" rx="30" fill="url(#cans)"/>
+    <rect x="132" y="246" width="38" height="58" rx="19" fill="#ffd0b8" opacity="0.5"/>
+    <rect x="342" y="246" width="38" height="58" rx="19" fill="#ffd0b8" opacity="0.5"/>
+
+    <!-- shoulders, with a simple collar -->
+    <path d="M128 476 q26 -92 128 -92 q102 0 128 92 z" fill="#3b3168"/>
+    <path d="M214 388 q42 30 84 0 q-14 34 -42 34 q-28 0 -42 -34 z" fill="#ffe6d2"/>
+    <path d="M214 388 q42 30 84 0" stroke="#2f2748" stroke-width="7" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

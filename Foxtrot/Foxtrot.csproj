@@ -1,0 +1,12 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <Description>Preview any orchestrion roll before you hunt it. Right-click a roll for a small player, or browse and search every track in the game.</Description>
+    <Authors>SorenWolfe</Authors>
+    <PackageProjectUrl>https://github.com/sorenwolfe/Foxtrot</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,72 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # CI has no XIVLauncher install, so grab the assemblies Dalamud ships and point the SDK at them.
+      - name: Fetch Dalamud reference assemblies
+        run: |
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/goatcorp/dalamud-distrib/main/latest.zip" -OutFile "$env:RUNNER_TEMP\dalamud.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP\dalamud.zip" -DestinationPath "$env:RUNNER_TEMP\dalamud" -Force
+          "DALAMUD_HOME=$env:RUNNER_TEMP\dalamud" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build
+        run: dotnet build Foxtrot/Foxtrot.csproj --configuration Release
+
+      - name: Check the archive
+        shell: pwsh
+        run: |
+          $found = Get-ChildItem -Path "Foxtrot\bin" -Recurse -Filter "latest.zip" -ErrorAction SilentlyContinue |
+                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $found) { throw "DalamudPackager produced no latest.zip." }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($found.FullName)
+          $names = $archive.Entries | ForEach-Object { $_.FullName }
+          $archive.Dispose()
+
+          foreach ($required in @('Foxtrot.dll', 'Foxtrot.json')) {
+            if ($names -notcontains $required) { throw "$required missing from the archive root." }
+          }
+
+          $built = Get-Content (Join-Path $found.Directory.FullName "Foxtrot.json") -Raw | ConvertFrom-Json
+          $repo  = (Get-Content "repo.json" -Raw | ConvertFrom-Json)[0]
+
+          foreach ($field in @('IconUrl', 'RepoUrl', 'DownloadLinkInstall')) {
+            if ($repo.$field -match 'YOURNAME|yourname') {
+              throw "repo.json $field still has a placeholder: $($repo.$field)"
+            }
+          }
+          if ($repo.DalamudApiLevel -ne $built.DalamudApiLevel) {
+            throw "repo.json targets API $($repo.DalamudApiLevel), the plugin builds against $($built.DalamudApiLevel)."
+          }
+          if ($repo.AssemblyVersion -ne $built.AssemblyVersion) {
+            Write-Warning "repo.json is $($repo.AssemblyVersion), the build is $($built.AssemblyVersion). Bump repo.json before tagging."
+          }
+
+          "dir=$($found.Directory.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Archive OK: $($names.Count) entries, version $($built.AssemblyVersion)."
+        id: check
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: Foxtrot
+          path: ${{ steps.check.outputs.dir }}
+          if-no-files-found: error
