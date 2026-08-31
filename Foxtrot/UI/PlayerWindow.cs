@@ -62,6 +62,9 @@ public sealed class PlayerWindow : Window, IDisposable
         if (current.Description.Length > 0 && ImGui.IsItemHovered())
             ImGui.SetTooltip(current.Description);
 
+        if (Plugin.Ownership.Available && !Plugin.Ownership.Owns(current.Id))
+            ImGui.TextDisabled("You have not learned this roll yet.");
+
         ImGui.Separator();
 
         var playing = player.IsPlaying;

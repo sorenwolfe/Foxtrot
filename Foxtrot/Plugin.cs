@@ -23,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static Configuration Config { get; private set; } = null!;
     internal static SongLibrary Library { get; private set; } = null!;
     internal static PreviewPlayer Preview { get; private set; } = null!;
+    internal static RollOwnership Ownership { get; private set; } = null!;
     internal static PlayerWindow Player { get; private set; } = null!;
     internal static BrowserWindow Browser { get; private set; } = null!;
 
@@ -39,6 +40,7 @@ public sealed class Plugin : IDalamudPlugin
         Library = new SongLibrary();
         Library.Load();
 
+        Ownership = new RollOwnership();
         ducker = new BgmDucker(new GameMusicBus());
         Preview = new PreviewPlayer(ducker);
 

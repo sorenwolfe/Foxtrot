@@ -17,6 +17,14 @@ public readonly record struct Song(
     public bool Playable => FilePath.Length > 0;
 }
 
+/// <summary>Whether the list is narrowed to what you have, or what you have not.</summary>
+public enum OwnedFilter
+{
+    Any,
+    Owned,
+    NotOwned,
+}
+
 /// <summary>
 /// Searching and ordering the track list.
 /// </summary>
@@ -35,7 +43,17 @@ public static class SongSearch
     /// ordering is kept, so a browse with an empty box looks like the in-game list rather than a
     /// shuffle.
     /// </remarks>
-    public static List<Song> Filter(IEnumerable<Song> songs, string? query, string? category)
+    /// <param name="owns">
+    /// Whether this character has learned a track. Null means unknown, in which case the ownership
+    /// filter is ignored rather than guessed at — an empty list because the game could not be read
+    /// looks exactly like owning nothing.
+    /// </param>
+    public static List<Song> Filter(
+        IEnumerable<Song> songs,
+        string? query,
+        string? category,
+        OwnedFilter owned = OwnedFilter.Any,
+        Func<uint, bool>? owns = null)
     {
         var text = (query ?? string.Empty).Trim();
         var wanted = (category ?? string.Empty).Trim();
@@ -44,6 +62,9 @@ public static class SongSearch
 
         if (wanted.Length > 0)
             pool = pool.Where(s => s.Category.Equals(wanted, StringComparison.OrdinalIgnoreCase));
+
+        if (owned != OwnedFilter.Any && owns != null)
+            pool = pool.Where(s => owns(s.Id) == (owned == OwnedFilter.Owned));
 
         if (text.Length == 0)
             return pool.OrderBy(s => s.Order).ThenBy(s => s.Id).ToList();
