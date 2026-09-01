@@ -134,10 +134,14 @@ Two things the build checks before it will pass:
 - The version in `Foxtrot.csproj` matches the one in `repo.json`. If they disagree, nobody is
   offered the update and nothing looks broken.
 
-Separately, **Release consistency** runs on every push to `main` and compares what `repo.json`
-advertises against what the published release actually contains. Bumping the version without
-tagging a release is the one mistake that breaks installs for everyone, and it is invisible from
-this side — the list looks right, the download link works, and only the player sees it fail.
+Separately, **Release consistency** compares what `repo.json` advertises against what the
+published release actually contains. Bumping the version without tagging a release is the one
+mistake that breaks installs for everyone, and it is invisible from this side — the list looks
+right, the download link works, and only the player sees it fail.
+
+It runs on push, after a release, and hourly, but only the last two can fail. Between the version
+bump and the tag the repository is *meant* to look inconsistent, and going red there put a cross on
+every correct release until the check was worth nothing to read.
 
 ### Releasing
 

@@ -1,14 +1,33 @@
 name: Release consistency
 
-# Catches the mistake that breaks installs: bumping the version in repo.json and forgetting to
-# tag, so the list advertises a version the download does not contain. Dalamud refuses that
-# outright — "Distributed plugin version does not match repo version" — and nothing before the
-# player's failed update says a word about it.
+# Catches the mistake that breaks installs: repo.json advertising a version the download does not
+# contain. Dalamud refuses that outright — "Distributed plugin version does not match repo
+# version" — and nothing before the player's failed update says a word about it.
+#
+# The awkward part is timing. Bumping the version and tagging are two pushes, and between them the
+# repository is *supposed* to look inconsistent. Failing there put a red X on every correct
+# release, which is worse than useless: a check that cries wolf on the happy path is a check you
+# learn to scroll past, and this is the one that most needs reading.
+#
+# So the push run only ever warns, and the runs that can actually judge — after a release, on a
+# schedule, or on demand — are the ones allowed to fail.
 on:
   push:
     branches: ['main']
-    paths: ['repo.json', '**/*.csproj', '**/*.json']
+    paths: ['repo.json', '**/*.csproj']
+
+  # The moment a release finishes is the first moment the two can be compared fairly.
+  workflow_run:
+    workflows: ['Release']
+    types: [completed]
+
+  schedule:
+    - cron: '23 * * * *'
+
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -17,59 +36,98 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Does the published release match what repo.json advertises?
         shell: python
+        env:
+          # A push is the middle of a release, not the end of one, so it reports without failing.
+          STRICT: ${{ github.event_name != 'push' }}
+          SHARED_LIST: https://raw.githubusercontent.com/sorenwolfe/XIVPlugins/main/repo.json
         run: |
-          import io, json, pathlib, re, sys, urllib.error, urllib.request, zipfile
+          import io, json, os, pathlib, re, sys, urllib.error, urllib.request, zipfile
+
+          strict = os.environ["STRICT"] == "true"
+
+          # Things that are wrong no matter when you look.
+          errors = []
+          # Things that are wrong now but may simply be a release in progress.
+          pending = []
+
+          def fetch(url):
+              request = urllib.request.Request(url, headers={"User-Agent": "release-consistency"})
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return response.read()
 
           entries = json.loads(pathlib.Path("repo.json").read_text())
-          problems = []
 
           for entry in entries:
               name = entry["InternalName"]
               listed = entry["AssemblyVersion"]
+              tag = f"v{listed.rsplit('.', 1)[0]}"
 
-              # The project file is the source of truth for what a build would produce.
+              # The project file and repo.json disagreeing is never a timing artefact. One of them
+              # is simply wrong, and it is wrong before any tag is pushed.
               csproj = next(pathlib.Path(".").rglob(f"{name}.csproj"), None)
               if csproj is not None:
                   found = re.search(r"<Version>([^<]+)</Version>", csproj.read_text())
                   if found and found.group(1) != listed:
-                      problems.append(
+                      errors.append(
                           f"{name}: {csproj} says {found.group(1)} but repo.json says {listed}. "
                           f"These must match before tagging.")
 
-              url = entry["DownloadLinkInstall"]
               try:
-                  request = urllib.request.Request(url, headers={"User-Agent": "release-consistency"})
-                  with urllib.request.urlopen(request, timeout=60) as response:
-                      payload = response.read()
+                  payload = fetch(entry["DownloadLinkInstall"])
               except urllib.error.HTTPError as exc:
                   if exc.code == 404:
-                      problems.append(
-                          f"{name}: repo.json advertises {listed} but there is no release to "
-                          f"download. Tag one: git tag v{listed.rsplit('.', 1)[0]} && git push --tags")
+                      pending.append(
+                          f"{name}: repo.json advertises {listed} and there is no release to "
+                          f"download. Tag one: git tag {tag} then git push --tags")
                       continue
-                  problems.append(f"{name}: could not fetch the release ({exc})")
+                  errors.append(f"{name}: could not fetch the release ({exc})")
                   continue
               except Exception as exc:
-                  problems.append(f"{name}: could not fetch the release ({exc})")
+                  errors.append(f"{name}: could not fetch the release ({exc})")
                   continue
 
               with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-                  manifest = json.loads(archive.read(f"{name}.json").decode("utf-8"))
+                  built = json.loads(archive.read(f"{name}.json").decode("utf-8")).get("AssemblyVersion")
 
-              built = manifest.get("AssemblyVersion")
               if built != listed:
-                  problems.append(
+                  pending.append(
                       f"{name}: repo.json advertises {listed} but the published release contains "
                       f"{built}. Anyone updating is told one version and handed another, and the "
-                      f"install fails. Tag a release: "
-                      f"git tag v{listed.rsplit('.', 1)[0]} && git push --tags")
+                      f"install fails. Tag a release: git tag {tag} then git push --tags")
               else:
-                  print(f"{name}: {listed} advertised and {built} published — consistent.")
+                  print(f"{name}: {listed} advertised, {built} published — consistent.")
 
-          for problem in problems:
+              # The shared list is what people actually install from, so it being behind breaks
+              # updates even when this repository is perfectly consistent with itself. It rebuilds
+              # on a schedule and heals on its own, so this is worth saying and not worth failing.
+              try:
+                  shared = json.loads(fetch(os.environ["SHARED_LIST"]).decode("utf-8"))
+              except Exception:
+                  shared = []
+
+              for other in shared:
+                  if other.get("InternalName") != name:
+                      continue
+                  if other.get("AssemblyVersion") != built:
+                      print(f"::warning::{name}: the shared plugin list still advertises "
+                            f"{other.get('AssemblyVersion')} while the release contains {built}. "
+                            f"It rebuilds twice an hour, or run 'Rebuild the plugin list' in "
+                            f"XIVPlugins to do it now.")
+
+          for problem in errors:
               print(f"::error::{problem}")
 
-          sys.exit(1 if problems else 0)
+          for problem in pending:
+              print(f"::{'error' if strict else 'warning'}::{problem}")
+
+          if errors or (pending and strict):
+              sys.exit(1)
+
+          if pending:
+              print("\nReported as warnings because this ran on a push, which is usually the "
+                    "middle of a release. The run after the release is the one that decides.")
