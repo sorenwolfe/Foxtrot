@@ -78,15 +78,50 @@ public sealed class RollContextMenu : IDisposable
             return false;
         }
 
-        if (!Plugin.Config.ContextMenuOnOrchestrionList)
+        if (args.AddonName is OrchestrionListAddon or OrchestrionAddon)
+        {
+            if (!Plugin.Config.ContextMenuOnOrchestrionList)
+                return false;
+
+            // The list's rows are not items, so the selected track has to be read from the addon
+            // itself. Left to the caller that knows how, so this stays testable.
+            if (OrchestrionListReader.TryGetSelected(args, library, out song) && song.Playable)
+                return true;
+
+            // That reader is not written yet, so fall through to the title, which names the row.
+        }
+
+        return TryResolveElsewhere(args, out song);
+    }
+
+    /// <summary>
+    /// A roll right-clicked anywhere that is not your bags: the market board, a loot roll, a link
+    /// in chat.
+    /// </summary>
+    /// <remarks>
+    /// The point of previewing is to decide whether you want something, which means the moment
+    /// that matters most is before you own it — looking at the market board price, or staring at
+    /// a need/greed timer. Restricting this to items already in your bags answered the question
+    /// only after it had stopped mattering.
+    ///
+    /// An id is asked for first and a name is accepted only if no id came back, because an id
+    /// cannot be ambiguous and a name can. Either way the answer is checked against the library,
+    /// so a window this plugin has never heard of either resolves to a real track or offers
+    /// nothing at all.
+    /// </remarks>
+    private bool TryResolveElsewhere(IMenuOpenedArgs args, out Song song)
+    {
+        song = default;
+
+        if (!Plugin.Config.ContextMenuAnywhere)
             return false;
 
-        if (args.AddonName is not (OrchestrionListAddon or OrchestrionAddon))
-            return false;
+        var itemId = ContextItemReader.ItemIdFrom(args.AddonName);
+        if (itemId != 0)
+            return library.TryGetByItem(itemId, out song) && song.Playable;
 
-        // The list's rows are not items, so the selected track has to be read from the addon
-        // itself. Left to the caller that knows how, so this stays testable.
-        return OrchestrionListReader.TryGetSelected(args, library, out song) && song.Playable;
+        var title = ContextItemReader.Title();
+        return library.TryGetByName(title, out song) && song.Playable;
     }
 
     public void Dispose() => Plugin.ContextMenu.OnMenuOpened -= OnMenuOpened;

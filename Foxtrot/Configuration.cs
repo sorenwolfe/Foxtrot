@@ -24,6 +24,16 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Show it in the in-game orchestrion list too.</summary>
     public bool ContextMenuOnOrchestrionList { get; set; } = true;
 
+    /// <summary>
+    /// Whether Preview appears on rolls outside your bags — the market board, loot rolls, chat
+    /// links.
+    /// </summary>
+    /// <remarks>
+    /// On by default, because that is the moment the question is actually being asked: before you
+    /// have the thing.
+    /// </remarks>
+    public bool ContextMenuAnywhere { get; set; } = true;
+
     // ---------------------------------------------------------------- theme
 
     /// <summary>The dark glass look. Off falls back to whatever Dalamud's style is.</summary>

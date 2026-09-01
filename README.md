@@ -38,8 +38,13 @@ a minute, and you only ever do it once.
 
 ## What it does
 
-**Right-click a roll, hear the roll.** Any orchestrion roll in your bags gets a **Preview** entry
-on its right-click menu. Click it and a small player opens with the track playing.
+**Right-click a roll, hear the roll.** Any orchestrion roll gets a **Preview** entry on its
+right-click menu. Click it and a small player opens with the track playing.
+
+**Including rolls you don't own.** The market board, a need/greed roll, a roll someone linked in
+chat — anywhere the game will give you a right-click menu. That's the point: "is this worth
+400,000 gil" and "do I need this over the tank" are questions you ask *before* the thing is yours,
+and previewing only your own bags answered them a purchase too late.
 
 **Browse everything.** `/foxtrot` opens a searchable list of every orchestrion track in the game.
 Search by name or by what the description says, filter by category, and play any of them — whether
@@ -93,10 +98,17 @@ settings turns it off if you'd rather it matched your other plugins.
 **No seek bar, and no pause.** The game's sampler starts and stops; it offers no way to jump to a
 point in a track or to hold one. Stop and play it again is the whole vocabulary.
 
-**No right-click in the orchestrion list yet.** Rolls in your *bags* work. Rows in the in-game
-orchestrion list don't, because working out which row is selected needs a detail that can only be
-found with the game running, and guessing at it would crash rather than misbehave. Use the browser
-in the meantime — it plays more anyway.
+**The orchestrion list is matched by name, not by row.** Reading which row is selected in that
+window isn't written yet, so it falls back to the name on the menu. That works wherever the game
+titles the menu with the track, and quietly does nothing where it doesn't. The browser plays
+anything regardless.
+
+**Matching rolls to tracks is currently English-only.** A roll should be tied to its track through
+the item's action data, which is exact and language-independent. On a live client that path
+matches *nothing*, so every roll is currently found by stripping "Orchestrion Roll" off the end of
+its name — which means no previews at all on a non-English client, and 86 rolls unmatched even on
+an English one. `/foxtrot diag` now prints what that sheet actually holds so this can be fixed
+from a reading rather than another guess.
 
 ---
 
@@ -112,7 +124,7 @@ first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
   release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.3.1` then `git push --tags`. The **Release consistency** workflow catches this on push,
+  `git tag v0.4.0` then `git push --tags`. The **Release consistency** workflow catches this on push,
   before anyone sees it.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
@@ -157,7 +169,7 @@ every correct release until the check was worth nothing to read.
 1. Bump `<Version>` in `Foxtrot.csproj`.
 2. Bump `AssemblyVersion` in `repo.json` to match.
 3. Commit and push.
-4. **Tag it**, or nothing is built: `git tag v0.3.1` then `git push --tags`.
+4. **Tag it**, or nothing is built: `git tag v0.4.0` then `git push --tags`.
 
 ---
 

@@ -75,6 +75,18 @@ public sealed class ConfigWindow : Window, IDisposable
             Plugin.SaveConfig();
         }
 
+        var anywhere = config.ContextMenuAnywhere;
+        if (ImGui.Checkbox("On rolls anywhere else", ref anywhere))
+        {
+            config.ContextMenuAnywhere = anywhere;
+            Plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
+        UiHelpers.Tooltip(
+            "The market board, a need/greed roll, a roll linked in chat. This is the moment the " +
+            "question is actually being asked — before you own the thing.");
+
         var onList = config.ContextMenuOnOrchestrionList;
         if (ImGui.Checkbox("In the orchestrion list", ref onList))
         {
@@ -84,9 +96,9 @@ public sealed class ConfigWindow : Window, IDisposable
 
         ImGui.SameLine();
         UiHelpers.Tooltip(
-            "Not working yet — reading which row is selected in that window needs a detail that " +
-            "can only be found with the game running. The browser plays anything in the meantime, " +
-            "including rolls you do not own.");
+            "Reading the selected row directly is not written yet, so this falls back to the name " +
+            "on the menu. If that window does not name the track, use the browser — it plays " +
+            "anything, including rolls you do not own.");
 
         var openPlayer = config.OpenPlayerOnPreview;
         if (ImGui.Checkbox("Open the player when a preview starts", ref openPlayer))

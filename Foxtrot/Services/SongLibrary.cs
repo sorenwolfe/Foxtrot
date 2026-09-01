@@ -26,6 +26,9 @@ public sealed class SongLibrary
     private readonly Dictionary<uint, Song> byId = new();
     private readonly Dictionary<uint, uint> songByItem = new();
 
+    /// <summary>Track name to track, for right-clicks that arrive with a name and nothing else.</summary>
+    private readonly Dictionary<string, uint> songByName = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>What the last load actually managed, so it can be reported rather than guessed at.</summary>
     public uint RollCategoryId { get; private set; }
 
@@ -53,10 +56,38 @@ public sealed class SongLibrary
         return songByItem.TryGetValue(itemId, out var songId) && byId.TryGetValue(songId, out song);
     }
 
+    /// <summary>
+    /// The track behind a name, for right-clicks that carry no item id at all.
+    /// </summary>
+    /// <remarks>
+    /// Two shapes reach here. "A Cold Wind Orchestrion Roll" is an item, so the suffix comes off
+    /// first; "A Cold Wind" is the track itself, which is what a row in the orchestrion list says.
+    /// Trying the stem first matters: an item name contains the track name, so testing the raw
+    /// string first would work by accident here and fail on any roll whose track name is a prefix
+    /// of another's.
+    ///
+    /// Empty in, false out. A blank title means the window did not name anything, and matching it
+    /// against a library keyed by name is how you end up offering to preview a menu heading.
+    /// </remarks>
+    public bool TryGetByName(string name, out Song song)
+    {
+        song = default;
+
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
+        foreach (var candidate in RollNames.Candidates(name))
+            if (songByName.TryGetValue(candidate, out var found) && byId.TryGetValue(found, out song))
+                return true;
+
+        return false;
+    }
+
     public void Load()
     {
         byId.Clear();
         songByItem.Clear();
+        songByName.Clear();
 
         try
         {
@@ -142,9 +173,8 @@ public sealed class SongLibrary
         RollsMatchedByName = 0;
         RollsUnmatched = 0;
 
-        var byName = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
         foreach (var song in byId.Values)
-            byName.TryAdd(song.Name, song.Id);
+            songByName.TryAdd(song.Name, song.Id);
 
         foreach (var item in items)
         {
@@ -171,7 +201,7 @@ public sealed class SongLibrary
             if (songId == 0 && namedLikeRoll)
             {
                 var stem = RollNames.Stem(name);
-                if (stem.Length > 0 && byName.TryGetValue(stem, out var found))
+                if (stem.Length > 0 && songByName.TryGetValue(stem, out var found))
                 {
                     songId = found;
                     RollsMatchedByName++;
@@ -182,6 +212,56 @@ public sealed class SongLibrary
                 songByItem[item.RowId] = songId;
             else
                 RollsUnmatched++;
+        }
+    }
+
+    /// <summary>
+    /// What the item action sheet actually holds for a few rolls, for the diagnostics command.
+    /// </summary>
+    /// <remarks>
+    /// Added because a live run reported 875 rolls matched by name and <em>none</em> by action —
+    /// so the preferred path, the one that is supposed to be exact and language-independent, is
+    /// matching nothing at all. Everything currently works through an English name suffix, which
+    /// means a client in any other language gets no previews whatsoever, and the 86 rolls that
+    /// matched neither way have no way back.
+    ///
+    /// Guessing at which field is really the track id from outside the game is how the wrong
+    /// assumption got here in the first place. This prints what is actually in the sheet so the
+    /// next attempt is based on a reading rather than another guess.
+    /// </remarks>
+    public IEnumerable<string> SampleRollActions(int count)
+    {
+        var items = Plugin.Data.GetExcelSheet<Item>();
+        if (items == null)
+            yield break;
+
+        var shown = 0;
+
+        foreach (var item in items)
+        {
+            if (shown >= count)
+                yield break;
+
+            var name = item.Name.ExtractText().Trim();
+            if (!RollNames.LooksLikeRoll(name))
+                continue;
+
+            if (item.ItemAction.ValueNullable is not { } action)
+            {
+                yield return $"{name}: no item action at all.";
+                shown++;
+                continue;
+            }
+
+            // Every value, not just the first. The first is the one the matching code trusts and
+            // the one that is coming back useless, so the answer is probably sitting beside it.
+            var data = string.Join(", ", action.Data);
+            var expected = RollNames.Stem(name) is var stem && songByName.TryGetValue(stem, out var id)
+                ? id.ToString()
+                : "unknown";
+
+            yield return $"{name}: action row {action.RowId}, data [{data}]; track should be {expected}.";
+            shown++;
         }
     }
 

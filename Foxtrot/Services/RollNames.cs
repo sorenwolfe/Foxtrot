@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Foxtrot.Services;
 
@@ -38,5 +39,33 @@ public static class RollNames
 
         var trimmed = itemName!.TrimEnd();
         return trimmed[..^Suffix.Length].Trim();
+    }
+
+    /// <summary>
+    /// The track names to try for a piece of text, best first.
+    /// </summary>
+    /// <remarks>
+    /// A right-click outside your bags arrives with a name and nothing else, and the name can be
+    /// either shape: "A Cold Wind Orchestrion Roll" is the item, "A Cold Wind" is the track. The
+    /// stem goes first because an item name *contains* a track name — trying the whole string
+    /// first happens to work for most rolls and quietly picks the wrong track for any whose full
+    /// item name is also a real track name.
+    ///
+    /// Nothing is yielded for blank text. A window that named nothing must match nothing, or the
+    /// plugin ends up offering to preview a menu heading.
+    /// </remarks>
+    public static IEnumerable<string> Candidates(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            yield break;
+
+        var trimmed = text.Trim();
+
+        var stem = Stem(trimmed);
+        if (stem.Length > 0)
+            yield return stem;
+
+        if (!string.Equals(stem, trimmed, StringComparison.Ordinal))
+            yield return trimmed;
     }
 }
