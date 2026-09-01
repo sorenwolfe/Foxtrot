@@ -34,6 +34,14 @@ public sealed class SongLibrary
 
     public int RollsMatchedByAction { get; private set; }
 
+    /// <summary>Roll items that carry any item action at all, matched or not.</summary>
+    /// <remarks>
+    /// The count that decides whether tying a roll to its track through the action sheet is a
+    /// fixable mistake or a dead end. If no roll has an action row, there is nothing there to read
+    /// and the name is the only route the game offers.
+    /// </remarks>
+    public int RollsWithActionRow { get; private set; }
+
     public int RollsMatchedByName { get; private set; }
 
     /// <summary>Items that look like rolls but could not be tied to a track. Should be zero.</summary>
@@ -143,6 +151,7 @@ public sealed class SongLibrary
 
         RollCategoryId = FindRollCategory();
         RollsMatchedByAction = 0;
+        RollsWithActionRow = 0;
         RollsMatchedByName = 0;
         RollsUnmatched = 0;
 
@@ -161,6 +170,9 @@ public sealed class SongLibrary
             uint songId = 0;
             if (item.ItemAction.ValueNullable is { } action && action.Data.Count > 0)
             {
+                if (action.RowId != 0)
+                    RollsWithActionRow++;
+
                 var candidate = (uint)action.Data[0];
                 if (candidate != 0 && byId.ContainsKey(candidate))
                 {
@@ -210,30 +222,31 @@ public sealed class SongLibrary
 
         var shown = 0;
 
-        foreach (var item in items)
+        // Rolls that were actually tied to a track. The first pass at this walked the sheet in
+        // order and printed whatever looked like a roll by name, which turned out to be "Blank
+        // Grade 1 Orchestrion Roll" and its siblings — crafting stock with no action and no track,
+        // so every line said "unknown" and answered nothing. The interesting rows are the ones
+        // that do have a track, because those are the ones the action data ought to have found.
+        foreach (var itemId in songByItem.Keys)
         {
             if (shown >= count)
                 yield break;
 
-            var name = item.Name.ExtractText().Trim();
-            if (!RollNames.LooksLikeRoll(name))
+            if (!items.TryGetRow(itemId, out var item))
                 continue;
 
-            if (item.ItemAction.ValueNullable is not { } action)
+            var name = item.Name.ExtractText().Trim();
+
+            if (item.ItemAction.ValueNullable is not { } action || action.RowId == 0)
             {
-                yield return $"{name}: no item action at all.";
+                yield return $"{name}: no item action at all; matched by name to {songByItem[itemId]}.";
                 shown++;
                 continue;
             }
 
-            // Every value, not just the first. The first is the one the matching code trusts and
-            // the one that is coming back useless, so the answer is probably sitting beside it.
             var data = string.Join(", ", action.Data);
-            var expected = RollNames.Stem(name) is var stem && songByName.TryGetValue(stem, out var id)
-                ? id.ToString()
-                : "unknown";
-
-            yield return $"{name}: action row {action.RowId}, data [{data}]; track should be {expected}.";
+            yield return $"{name}: action row {action.RowId}, data [{data}]; " +
+                         $"track is actually {songByItem[itemId]}.";
             shown++;
         }
     }

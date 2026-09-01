@@ -237,7 +237,8 @@ public sealed class Plugin : IDalamudPlugin
         // name matching is English-only, so a client in any other language has no previews at all.
         if (library.RollsMatchedByAction == 0 && library.RollItemCount > 0)
         {
-            Say("No roll matched by item action, so everything is riding on English names.");
+            Say($"No roll matched by item action; {library.RollsWithActionRow} of "
+                + $"{library.RollItemCount} rolls carry an action row at all.");
             foreach (var line in library.SampleRollActions(3))
                 Say("  raw: " + line);
         }
