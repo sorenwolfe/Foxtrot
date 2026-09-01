@@ -214,7 +214,7 @@ public sealed class Plugin : IDalamudPlugin
         void Say(string line) => ChatGui.Print(line, "Foxtrot", null);
 
         Say($"{library.Count} track(s) readable, {library.RollItemCount} roll item(s) mapped.");
-        Say($"Matched {library.RollsMatchedByAction} by item action, " +
+        Say($"Matched {library.RollsMatchedByLink} by item link, " +
             $"{library.RollsMatchedByName} by name, {library.RollsUnmatched} not matched.");
         Say($"Roll item category resolved to {library.RollCategoryId} " +
             $"(the long-standing value is {SongLibrary.FallbackRollCategory}).");
@@ -233,12 +233,11 @@ public sealed class Plugin : IDalamudPlugin
         Say($"Hovered item watch: {hovered?.Describe() ?? "not running"}.");
         Say($"Last right-click menu: {contextMenu?.LastMenu ?? "not attached"}.");
 
-        // Only when the exact path is matching nothing, which is a real fault rather than noise:
-        // name matching is English-only, so a client in any other language has no previews at all.
-        if (library.RollsMatchedByAction == 0 && library.RollItemCount > 0)
+        // Only when the exact route is matching nothing, which is a real fault rather than noise:
+        // the name route is English-only, so a client in any other language has no previews at all.
+        if (library.RollsMatchedByLink == 0 && library.RollItemCount > 0)
         {
-            Say($"No roll matched by item action; {library.RollsWithActionRow} of "
-                + $"{library.RollItemCount} rolls carry an action row at all.");
+            Say("No roll matched by its item link, so everything is riding on English names.");
             foreach (var line in library.SampleRollActions(3))
                 Say("  raw: " + line);
         }

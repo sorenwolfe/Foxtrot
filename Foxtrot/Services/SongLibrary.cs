@@ -32,7 +32,8 @@ public sealed class SongLibrary
     /// <summary>What the last load actually managed, so it can be reported rather than guessed at.</summary>
     public uint RollCategoryId { get; private set; }
 
-    public int RollsMatchedByAction { get; private set; }
+    /// <summary>Rolls tied to their track through the item's own link to the Orchestrion sheet.</summary>
+    public int RollsMatchedByLink { get; private set; }
 
     /// <summary>Roll items that carry any item action at all, matched or not.</summary>
     /// <remarks>
@@ -78,7 +79,7 @@ public sealed class SongLibrary
 
             Plugin.Log.Information(
                 $"Foxtrot: {byId.Count} track(s); {songByItem.Count} roll item(s) " +
-                $"({RollsMatchedByAction} by action, {RollsMatchedByName} by name, " +
+                $"({RollsMatchedByLink} by link, {RollsMatchedByName} by name, " +
                 $"{RollsUnmatched} unmatched); roll category {RollCategoryId}.");
         }
         catch (Exception ex)
@@ -150,7 +151,7 @@ public sealed class SongLibrary
             return;
 
         RollCategoryId = FindRollCategory();
-        RollsMatchedByAction = 0;
+        RollsMatchedByLink = 0;
         RollsWithActionRow = 0;
         RollsMatchedByName = 0;
         RollsUnmatched = 0;
@@ -168,21 +169,23 @@ public sealed class SongLibrary
                 continue;
 
             uint songId = 0;
-            if (item.ItemAction.ValueNullable is { } action && action.Data.Count > 0)
-            {
-                if (action.RowId != 0)
-                    RollsWithActionRow++;
 
-                var candidate = (uint)action.Data[0];
-                if (candidate != 0 && byId.ContainsKey(candidate))
-                {
-                    songId = candidate;
-                    RollsMatchedByAction++;
-                }
+            // Where the track id actually lives. The item action was the obvious guess and it was
+            // wrong twice over: every roll shares one action row (2235, "this unlocks a roll"), and
+            // its data is all zeros. It says what kind of thing the item is, not which one. The
+            // link is AdditionalData, which for a roll points straight at the Orchestrion row.
+            var linked = item.AdditionalData.RowId;
+            if (linked != 0 && byId.ContainsKey(linked))
+            {
+                songId = linked;
+                RollsMatchedByLink++;
             }
 
-            // Only when the action gave nothing usable. This is what covers the case where the
-            // assumptions about that sheet turn out to be wrong.
+            if (item.ItemAction.ValueNullable is { } action && action.RowId != 0)
+                RollsWithActionRow++;
+
+            // Only when the link gave nothing usable. English-only, so it is a fallback rather
+            // than the route: it is the one that cannot work for anybody playing in French.
             if (songId == 0 && namedLikeRoll)
             {
                 var stem = RollNames.Stem(name);
@@ -237,15 +240,9 @@ public sealed class SongLibrary
 
             var name = item.Name.ExtractText().Trim();
 
-            if (item.ItemAction.ValueNullable is not { } action || action.RowId == 0)
-            {
-                yield return $"{name}: no item action at all; matched by name to {songByItem[itemId]}.";
-                shown++;
-                continue;
-            }
+            var action = item.ItemAction.ValueNullable is { } value ? value.RowId : 0;
 
-            var data = string.Join(", ", action.Data);
-            yield return $"{name}: action row {action.RowId}, data [{data}]; " +
+            yield return $"{name}: link {item.AdditionalData.RowId}, action row {action}; " +
                          $"track is actually {songByItem[itemId]}.";
             shown++;
         }

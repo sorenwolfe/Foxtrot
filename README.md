@@ -104,14 +104,10 @@ cursor is over. Rows in the orchestrion list are songs rather than items, so not
 and reading the selected row out of that window is not written. The browser plays anything
 regardless — including rolls you don't own.
 
-**Matching rolls to tracks is currently English-only.** A roll should be tied to its track through
-the item's action data, which would be exact and would work in any language. On a live client that
-path matches *nothing*, so every roll is found by stripping "Orchestrion Roll" off the end of its
-name — which means no previews at all on a non-English client.
-
-Whether that is fixable is still open. `/foxtrot diag` reports how many rolls carry an action row
-at all; if the answer is none, the sheet holds nothing to read and the name is the only route the
-game offers.
+**Some rolls only match in English.** A roll is tied to its track by the item's own link to the
+orchestrion table, which is exact and works in any language. Where that link is missing, the track
+name is read off the end of the item name instead — and that only works in English. `/foxtrot diag`
+says how many fell back.
 
 Part of the unmatched count is not a fault: "Blank Grade 1 Orchestrion Roll" and its siblings are
 crafting stock. They are named like rolls, they are in the roll category, and there is no track
@@ -139,7 +135,7 @@ first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
   release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.4.3` then `git push --tags`. The **Release consistency** workflow catches this on push,
+  `git tag v0.5.0` then `git push --tags`. The **Release consistency** workflow catches this on push,
   before anyone sees it.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
@@ -201,7 +197,7 @@ every correct release until the check was worth nothing to read.
 1. Bump `<Version>` in `Foxtrot.csproj`.
 2. Bump `AssemblyVersion` in `repo.json` to match.
 3. Commit and push.
-4. **Tag it**, or nothing is built: `git tag v0.4.3` then `git push --tags`.
+4. **Tag it**, or nothing is built: `git tag v0.5.0` then `git push --tags`.
 
 ---
 
