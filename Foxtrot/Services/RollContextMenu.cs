@@ -67,13 +67,34 @@ public sealed class RollContextMenu : IDisposable
                 PrefixChar = 'F',
                 PrefixColor = 539,
                 Priority = -1,
-                OnClicked = _ => onPreview(song),
+                OnClicked = _ => Clicked(song),
             });
         }
         catch (Exception ex)
         {
             // A throw here would take the game's context menu with it.
             Plugin.Log.Error(ex, "Could not add the preview menu item.");
+        }
+    }
+
+    /// <summary>
+    /// Starts the preview, and refuses to let a failure escape into the game's click dispatch.
+    /// </summary>
+    /// <remarks>
+    /// This runs later than everything else here — from native code, when the entry is clicked,
+    /// long after the handler that added it has returned. It was the one path out of this class
+    /// with nothing around it, and an exception escaping a callback the game invoked is not a
+    /// logged error, it is the client closing.
+    /// </remarks>
+    private void Clicked(Song song)
+    {
+        try
+        {
+            onPreview(song);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, "Could not start the preview from the menu.");
         }
     }
 
