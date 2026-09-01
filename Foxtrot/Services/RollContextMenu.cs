@@ -33,12 +33,33 @@ public sealed class RollContextMenu : IDisposable
         Plugin.ContextMenu.OnMenuOpened += OnMenuOpened;
     }
 
+    /// <summary>
+    /// What happened the last time a menu opened, for the diagnostics command.
+    /// </summary>
+    /// <remarks>
+    /// "No Preview appeared" has three quite different causes — the menu never reached this
+    /// plugin, nothing was hovered, or the item did not map to a track — and they are
+    /// indistinguishable from the outside. Working out which one it is by changing code and
+    /// waiting for a report costs a round trip each time. This says it outright.
+    /// </remarks>
+    public string LastMenu { get; private set; } = "no menu seen yet";
+
     private void OnMenuOpened(IMenuOpenedArgs args)
     {
         try
         {
+            var where = args.AddonName ?? (args.Target is MenuTargetInventory ? "bags" : "unknown");
+            var seen = hovered.Recent;
+
             if (!TryResolve(args, out var song))
+            {
+                LastMenu = seen == 0
+                    ? $"{where}: nothing hovered, so no track to offer"
+                    : $"{where}: hovered item {seen}, which is not a roll this can play";
                 return;
+            }
+
+            LastMenu = $"{where}: offered {song.Name}";
 
             args.AddMenuItem(new MenuItem
             {

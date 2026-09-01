@@ -116,31 +116,37 @@ public sealed class GameOrchestrionBus : IMusicBus
 /// attenuates it from there. For a preview that behaviour is simply wrong — the track is coming
 /// from a window on your screen, not from a spot on the floor.
 ///
-/// Rather than fight the 3D audio, the emitter is moved onto the listener every frame, so the
-/// distance is always zero and there is nothing to attenuate. The listener in this game is the
-/// camera, which is why sound thins out when you zoom out.
+/// Rather than fight the 3D audio, the emitter is moved onto the player every frame, so there is
+/// no distance left to attenuate.
 /// </remarks>
 public static class OrchestrionEmitter
 {
-    /// <summary>Puts the emitter on the listener. False means the game could not be asked.</summary>
+    /// <summary>Puts the emitter on the player. False means there was nowhere to put it.</summary>
+    /// <remarks>
+    /// This used to read the camera, through <c>CameraManager.Instance()-&gt;CurrentCamera</c> —
+    /// the one place in this plugin that dereferenced a singleton without checking it first, on a
+    /// path that runs every single frame a preview is playing. Between zones, during a loading
+    /// screen, in a cutscene, that read is not valid, and an invalid read ends the game outright
+    /// rather than raising anything catchable.
+    ///
+    /// The player's position comes from Dalamud as a plain value, and it is null exactly when
+    /// there is no world to be positioned in — which is precisely the moment the camera was
+    /// unsafe to touch. It sits a few yalms from the camera rather than on it, which is close
+    /// enough that there is no meaningful distance left to attenuate, and it costs no pointer at
+    /// all.
+    /// </remarks>
     public static bool PinToListener()
     {
         try
         {
-            unsafe
-            {
-                var camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CameraManager
-                    .Instance()->CurrentCamera;
+            if (Plugin.Objects.LocalPlayer is not { } player)
+                return false;
 
-                if (camera == null)
-                    return false;
-
-                return MoveTo(camera->Position);
-            }
+            return MoveTo(player.Position);
         }
         catch (Exception ex)
         {
-            Plugin.Log.Warning(ex, "Could not follow the listener with the preview.");
+            Plugin.Log.Warning(ex, "Could not follow the player with the preview.");
             return false;
         }
     }

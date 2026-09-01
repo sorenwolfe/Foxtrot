@@ -73,8 +73,8 @@ last asked for.
 
 **And it follows you.** That sampler is built for furniture, so the game plays it from a fixed spot
 on the floor and fades it out as you walk away — correct for an orchestrion in a room, useless for
-a preview. The sound is kept on top of your camera instead, so it plays at full volume wherever you
-go.
+a preview. The sound is kept on top of your character instead, so it plays at full volume wherever
+you go.
 
 **It looks like RaidPlan.** Same dark panels, same accent colour, same soft shadows. One switch in
 settings turns it off if you'd rather it matched your other plugins.
@@ -115,17 +115,25 @@ from a reading rather than another guess.
 
 ## If something isn't working
 
-**The Preview entry doesn't appear.** It only shows on actual orchestrion rolls, and only if the
-plugin managed to tie that roll to a track. Run `/foxtrot diag` — it prints how many rolls it
-mapped and shows a few examples. If it says nothing was mapped, that's the bug, and that output is
-what to report.
+**The Preview entry doesn't appear.** Right-click wherever it didn't appear, then run
+`/foxtrot diag`. The last line says which of the three quite different things happened:
+
+- *nothing hovered* — the game never reported an item there, so there was nothing to offer. That
+  window doesn't show item tooltips, or the hover didn't register.
+- *hovered item N, which is not a roll this can play* — the item was seen and isn't a roll, or is
+  one the plugin failed to map to a track.
+- *offered X* — it did appear, and the entry is there.
+
+If the menu isn't mentioned at all, the game didn't raise one this plugin can see. The rest of
+`diag` prints how many rolls were mapped and a few examples; nothing mapped is the bug worth
+reporting.
 
 **"Failed to update plugin Foxtrot (Load failed)."** Open `/xllog` and read the actual error
 first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
   release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.4.1` then `git push --tags`. The **Release consistency** workflow catches this on push,
+  `git tag v0.4.2` then `git push --tags`. The **Release consistency** workflow catches this on push,
   before anyone sees it.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
@@ -135,7 +143,16 @@ first — the wording matters:
 If it comes up empty, something went wrong reading them — the count is shown at the bottom of the
 settings window, and there'll be a line in the Dalamud log.
 
-**It crashed the game outright.** That happened on the market board in 0.4.0, and it was mine.
+**It crashed the game outright.** Twice, and both were mine. The second one, fixed in 0.4.2, had
+nothing to do with the market board despite looking like it did: keeping the preview on top of you
+read the camera through `CameraManager.Instance()->CurrentCamera`, the one place in this plugin
+that followed a game pointer without checking it first — on a path that runs every frame a preview
+is playing. It reads fine until it doesn't, so it crashed on whatever you happened to be doing at
+the time. It now uses your character's position, which Dalamud hands over as a plain value and
+which is simply absent during the loading screens where the camera was unsafe to touch. The test
+suite now refuses any unchecked dereference anywhere in the plugin.
+
+The first, in 0.4.0, was on the market board and was the same class of mistake.
 Working out which item a right-click was aimed at read the game's own memory — the loot window's
 agent, the market board's, the context menu's title string — and a bad read there raises an access
 violation, which .NET does not hand to a `catch` block. The process ends with no exception and no
@@ -178,7 +195,7 @@ every correct release until the check was worth nothing to read.
 1. Bump `<Version>` in `Foxtrot.csproj`.
 2. Bump `AssemblyVersion` in `repo.json` to match.
 3. Commit and push.
-4. **Tag it**, or nothing is built: `git tag v0.4.1` then `git push --tags`.
+4. **Tag it**, or nothing is built: `git tag v0.4.2` then `git push --tags`.
 
 ---
 

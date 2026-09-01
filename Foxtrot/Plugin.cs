@@ -23,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static IObjectTable Objects { get; private set; } = null!;
 
     internal static Configuration Config { get; private set; } = null!;
     internal static SongLibrary Library { get; private set; } = null!;
@@ -230,6 +231,7 @@ public sealed class Plugin : IDalamudPlugin
             Say("  e.g. " + line);
 
         Say($"Hovered item watch: {hovered?.Describe() ?? "not running"}.");
+        Say($"Last right-click menu: {contextMenu?.LastMenu ?? "not attached"}.");
 
         // Only when the exact path is matching nothing, which is a real fault rather than noise:
         // name matching is English-only, so a client in any other language has no previews at all.
