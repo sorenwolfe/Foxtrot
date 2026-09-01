@@ -93,6 +93,47 @@ jobs:
             throw "The icon is ${kb} KB. That is large enough to be worth resaving."
           }
 
+      # A download link pointing at "latest" cannot stay honest. Dalamud caches the plugin list,
+      # so the moment a newer release exists every cached copy advertises one version and is handed
+      # another -- "Distributed plugin version does not match repo version", from a repository that
+      # is itself perfectly consistent. Pinning the link to this version's own tag means a stale
+      # list installs the matching older build instead of failing.
+      - name: Do the download links point at this version?
+        shell: python
+        run: |
+          import json, pathlib, re, sys
+
+          problems = []
+
+          for entry in json.loads(pathlib.Path("repo.json").read_text()):
+              name = entry["InternalName"]
+              version = entry["AssemblyVersion"]
+              tag = "v" + version.rsplit(".", 1)[0]
+
+              for field in ("DownloadLinkInstall", "DownloadLinkUpdate", "DownloadLinkTesting"):
+                  url = entry.get(field, "")
+
+                  if "/releases/latest/" in url:
+                      problems.append(
+                          f"{name}: {field} points at releases/latest. A cached plugin list then "
+                          f"advertises an old version and downloads a newer one, and the install "
+                          f"fails. Pin it to /releases/download/{tag}/{name}.zip")
+                      continue
+
+                  found = re.search(r"/releases/download/([^/]+)/", url)
+                  if found is None:
+                      problems.append(f"{name}: {field} is not a release download link: {url}")
+                  elif found.group(1) != tag:
+                      problems.append(
+                          f"{name}: {field} points at {found.group(1)} but repo.json advertises "
+                          f"{version}, which ships as {tag}.")
+
+          for problem in problems:
+              print(f"::error::{problem}")
+
+          print("Download links checked." if not problems else "")
+          sys.exit(1 if problems else 0)
+
       - name: Fetch Dalamud reference assemblies
         run: |
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/goatcorp/dalamud-distrib/main/latest.zip" -OutFile "$env:RUNNER_TEMP\dalamud.zip"

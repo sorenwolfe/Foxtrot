@@ -140,10 +140,13 @@ reporting.
 **"Failed to update plugin Foxtrot (Load failed)."** Open `/xllog` and read the actual error
 first — the wording matters:
 
-- *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
-  release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.6.2` then `git push --tags`. The **Release consistency** workflow catches this on push,
-  before anyone sees it.
+- *"Distributed plugin version does not match repo version"* has two causes. Either `repo.json`
+  was bumped and no release was tagged — tag one: `git tag v0.6.3` then `git push --tags` — or the
+  plugin list Dalamud has cached is older than the release. The second one used to be unavoidable,
+  because the download link pointed at `releases/latest`: any cached list then advertised one
+  version and was handed a newer one. Links are pinned to their own tag from 0.6.3 on, so a stale
+  list installs the matching older build instead of failing, and the build refuses a link that
+  does not match the version it ships with.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
   it is the cause. Restarting the game once clears anything a failed load left behind.
