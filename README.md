@@ -142,7 +142,7 @@ first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
   release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.6.1` then `git push --tags`. The **Release consistency** workflow catches this on push,
+  `git tag v0.6.2` then `git push --tags`. The **Release consistency** workflow catches this on push,
   before anyone sees it.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
@@ -204,7 +204,7 @@ every correct release until the check was worth nothing to read.
 1. Bump `<Version>` in `Foxtrot.csproj`.
 2. Bump `AssemblyVersion` in `repo.json` to match.
 3. Commit and push.
-4. **Tag it**, or nothing is built: `git tag v0.6.1` then `git push --tags`.
+4. **Tag it**, or nothing is built: `git tag v0.6.2` then `git push --tags`.
 
 ---
 

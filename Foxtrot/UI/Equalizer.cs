@@ -62,9 +62,34 @@ public static class Equalizer
         return RestingHeight + ((1f - RestingHeight) * wave * shape);
     }
 
+    /// <summary>
+    /// Turns a requested width into a real one, the way ImGui treats widths elsewhere.
+    /// </summary>
+    /// <remarks>
+    /// Negative means "fill what is left", so -1 is the whole width less a pixel. Resolving it is
+    /// not optional: the caller passes -1, and the sanity check below rejects anything at or below
+    /// zero — so the entire row returned before drawing a single bar, leaving a gap where the
+    /// equalizer should have been and no error anywhere to say why.
+    ///
+    /// The floor matters too. In an auto-resizing window the space left over is whatever last
+    /// frame worked out, which can be nothing at all on the first one.
+    /// </remarks>
+    public static float ResolveWidth(float requested, float available, float minimum)
+    {
+        if (requested > 0f)
+            return requested;
+
+        if (requested == 0f)
+            return 0f;
+
+        return MathF.Max(available + requested, minimum);
+    }
+
     /// <summary>Draws a row of bars into the current window and consumes the space.</summary>
     public static void Draw(string id, Vector2 size, bool playing, int bars = 24)
     {
+        size.X = ResolveWidth(size.X, ImGui.GetContentRegionAvail().X, 48f * UiHelpers.Scale);
+
         if (bars <= 0 || size.X <= 0f || size.Y <= 0f)
             return;
 
