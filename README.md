@@ -98,10 +98,11 @@ settings turns it off if you'd rather it matched your other plugins.
 **No seek bar, and no pause.** The game's sampler starts and stops; it offers no way to jump to a
 point in a track or to hold one. Stop and play it again is the whole vocabulary.
 
-**The orchestrion list is matched by name, not by row.** Reading which row is selected in that
-window isn't written yet, so it falls back to the name on the menu. That works wherever the game
-titles the menu with the track, and quietly does nothing where it doesn't. The browser plays
-anything regardless.
+**No right-click in the orchestrion list.** Rolls in your bags, on the market board, in a loot
+roll and in chat links all work, because all of those are *items* and the game reports what the
+cursor is over. Rows in the orchestrion list are songs rather than items, so nothing reports them,
+and reading the selected row out of that window is not written. The browser plays anything
+regardless — including rolls you don't own.
 
 **Matching rolls to tracks is currently English-only.** A roll should be tied to its track through
 the item's action data, which is exact and language-independent. On a live client that path
@@ -124,7 +125,7 @@ first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
   release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.4.0` then `git push --tags`. The **Release consistency** workflow catches this on push,
+  `git tag v0.4.1` then `git push --tags`. The **Release consistency** workflow catches this on push,
   before anyone sees it.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
@@ -133,6 +134,14 @@ first — the wording matters:
 **The browser is empty.** Foxtrot reads the track list from the game's own data files at startup.
 If it comes up empty, something went wrong reading them — the count is shown at the bottom of the
 settings window, and there'll be a line in the Dalamud log.
+
+**It crashed the game outright.** That happened on the market board in 0.4.0, and it was mine.
+Working out which item a right-click was aimed at read the game's own memory — the loot window's
+agent, the market board's, the context menu's title string — and a bad read there raises an access
+violation, which .NET does not hand to a `catch` block. The process ends with no exception and no
+log line, which is why there was nothing to read afterwards. The guards I had written around those
+reads were worth nothing. 0.4.1 takes the item from Dalamud's own managed tracking of what the
+cursor is over, so that path now contains no pointers at all.
 
 **My music is quiet after using it.** It shouldn't be. This did happen up to 0.3.1: the volume was
 read back through the game's *effective* volume, which folds in your master slider, so with master
@@ -169,7 +178,7 @@ every correct release until the check was worth nothing to read.
 1. Bump `<Version>` in `Foxtrot.csproj`.
 2. Bump `AssemblyVersion` in `repo.json` to match.
 3. Commit and push.
-4. **Tag it**, or nothing is built: `git tag v0.4.0` then `git push --tags`.
+4. **Tag it**, or nothing is built: `git tag v0.4.1` then `git push --tags`.
 
 ---
 

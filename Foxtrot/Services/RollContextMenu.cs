@@ -22,10 +22,12 @@ public sealed class RollContextMenu : IDisposable
 
     private readonly SongLibrary library;
     private readonly Action<Song> onPreview;
+    private readonly HoveredItem hovered;
 
-    public RollContextMenu(SongLibrary library, Action<Song> onPreview)
+    public RollContextMenu(SongLibrary library, HoveredItem hovered, Action<Song> onPreview)
     {
         this.library = library;
+        this.hovered = hovered;
         this.onPreview = onPreview;
 
         Plugin.ContextMenu.OnMenuOpened += OnMenuOpened;
@@ -83,15 +85,12 @@ public sealed class RollContextMenu : IDisposable
             if (!Plugin.Config.ContextMenuOnOrchestrionList)
                 return false;
 
-            // The list's rows are not items, so the selected track has to be read from the addon
-            // itself. Left to the caller that knows how, so this stays testable.
-            if (OrchestrionListReader.TryGetSelected(args, library, out song) && song.Playable)
-                return true;
-
-            // That reader is not written yet, so fall through to the title, which names the row.
+            // The list's rows are songs rather than items, so nothing hovered an item and the
+            // selected row has to be read from the addon. Left to the caller that knows how.
+            return OrchestrionListReader.TryGetSelected(args, library, out song) && song.Playable;
         }
 
-        return TryResolveElsewhere(args, out song);
+        return TryResolveElsewhere(out song);
     }
 
     /// <summary>
@@ -104,24 +103,25 @@ public sealed class RollContextMenu : IDisposable
     /// a need/greed timer. Restricting this to items already in your bags answered the question
     /// only after it had stopped mattering.
     ///
-    /// An id is asked for first and a name is accepted only if no id came back, because an id
-    /// cannot be ambiguous and a name can. Either way the answer is checked against the library,
-    /// so a window this plugin has never heard of either resolves to a real track or offers
-    /// nothing at all.
+    /// What was right-clicked is whatever the cursor was last over, which Dalamud tracks for us
+    /// from the game's own tooltip code. That is one number and no pointers, and it covers every
+    /// window that shows an item tooltip rather than the handful anybody thought to enumerate.
+    ///
+    /// The answer is still checked against the library, so a window this plugin has never heard of
+    /// either resolves to a real track or offers nothing at all.
     /// </remarks>
-    private bool TryResolveElsewhere(IMenuOpenedArgs args, out Song song)
+    private bool TryResolveElsewhere(out Song song)
     {
         song = default;
 
         if (!Plugin.Config.ContextMenuAnywhere)
             return false;
 
-        var itemId = ContextItemReader.ItemIdFrom(args.AddonName);
-        if (itemId != 0)
-            return library.TryGetByItem(itemId, out song) && song.Playable;
+        var itemId = hovered.Recent;
+        if (itemId == 0)
+            return false;
 
-        var title = ContextItemReader.Title();
-        return library.TryGetByName(title, out song) && song.Playable;
+        return library.TryGetByItem(itemId, out song) && song.Playable;
     }
 
     public void Dispose() => Plugin.ContextMenu.OnMenuOpened -= OnMenuOpened;

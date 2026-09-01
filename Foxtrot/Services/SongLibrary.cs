@@ -56,33 +56,6 @@ public sealed class SongLibrary
         return songByItem.TryGetValue(itemId, out var songId) && byId.TryGetValue(songId, out song);
     }
 
-    /// <summary>
-    /// The track behind a name, for right-clicks that carry no item id at all.
-    /// </summary>
-    /// <remarks>
-    /// Two shapes reach here. "A Cold Wind Orchestrion Roll" is an item, so the suffix comes off
-    /// first; "A Cold Wind" is the track itself, which is what a row in the orchestrion list says.
-    /// Trying the stem first matters: an item name contains the track name, so testing the raw
-    /// string first would work by accident here and fail on any roll whose track name is a prefix
-    /// of another's.
-    ///
-    /// Empty in, false out. A blank title means the window did not name anything, and matching it
-    /// against a library keyed by name is how you end up offering to preview a menu heading.
-    /// </remarks>
-    public bool TryGetByName(string name, out Song song)
-    {
-        song = default;
-
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
-
-        foreach (var candidate in RollNames.Candidates(name))
-            if (songByName.TryGetValue(candidate, out var found) && byId.TryGetValue(found, out song))
-                return true;
-
-        return false;
-    }
-
     public void Load()
     {
         byId.Clear();

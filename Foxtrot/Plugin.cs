@@ -22,6 +22,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
 
     internal static Configuration Config { get; private set; } = null!;
     internal static SongLibrary Library { get; private set; } = null!;
@@ -33,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     private static BgmDucker ducker = null!;
     private static BgmDucker previewVolume = null!;
     private static RollContextMenu? contextMenu;
+    private static HoveredItem? hovered;
     private static ConfigWindow configWindow = null!;
 
     public readonly WindowSystem WindowSystem = new("Foxtrot");
@@ -88,7 +90,9 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private void Attach()
     {
-        contextMenu = new RollContextMenu(Library, OnPreviewRequested);
+        // Before the menu, which reads from it.
+        hovered = new HoveredItem();
+        contextMenu = new RollContextMenu(Library, hovered, OnPreviewRequested);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -131,6 +135,9 @@ public sealed class Plugin : IDalamudPlugin
 
         Safely(() => contextMenu?.Dispose(), "detach the context menu");
         contextMenu = null;
+
+        Safely(() => hovered?.Dispose(), "stop watching the hovered item");
+        hovered = null;
     }
 
     /// <summary>
@@ -221,6 +228,8 @@ public sealed class Plugin : IDalamudPlugin
         // non-empty but pointing at the right music.
         foreach (var line in library.SampleMappings(3))
             Say("  e.g. " + line);
+
+        Say($"Hovered item watch: {hovered?.Describe() ?? "not running"}.");
 
         // Only when the exact path is matching nothing, which is a real fault rather than noise:
         // name matching is English-only, so a client in any other language has no previews at all.
