@@ -19,6 +19,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDataManager Data { get; private set; } = null!;
     [PluginService] internal static IContextMenu ContextMenu { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     internal static Configuration Config { get; private set; } = null!;

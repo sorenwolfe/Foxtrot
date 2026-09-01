@@ -3,44 +3,44 @@ using System;
 namespace Foxtrot.Services;
 
 /// <summary>
-/// The thing the buttons drive: what is playing, how loud, and stopping it.
+/// The thing the buttons drive: what is loaded, whether it is sounding, and stopping it.
 /// </summary>
 /// <remarks>
-/// Every path out of playing — the button, a new track, the track ending by itself, the plugin
-/// unloading — goes through <see cref="Stop"/>, so there is exactly one place that has to remember
-/// to give the player their music back. Spreading that over four call sites is how someone ends up
-/// with a permanently quiet game.
+/// Whether something is playing is asked of the game rather than remembered here. The previous
+/// version kept its own flag, so a preview that never started still lit the Stop button and a
+/// track that ended on its own still looked like it was playing — the buttons described this
+/// plugin's intentions rather than the game's behaviour.
+///
+/// Every path out of playing still goes through <see cref="Stop"/>, so there is exactly one place
+/// that has to remember to give the player their music back.
 /// </remarks>
 public sealed class PreviewPlayer : IDisposable
 {
     private readonly BgmDucker ducker;
 
-    private PlayingSound? sound;
+    private bool ours;
 
     public PreviewPlayer(BgmDucker ducker) => this.ducker = ducker;
 
-    /// <summary>The track loaded into the player, playing or not.</summary>
+    /// <summary>The track loaded into the player, sounding or not.</summary>
     public Song? Current { get; private set; }
 
-    public bool IsPlaying => sound?.IsPlaying == true;
+    /// <summary>
+    /// True while this plugin's own preview is sounding.
+    /// </summary>
+    /// <remarks>
+    /// Someone else's orchestrion playing is deliberately not "playing" here: the Stop button
+    /// must not offer to stop music this plugin did not start.
+    /// </remarks>
+    public bool IsPlaying => ours && OrchestrionSampler.State == SamplerState.Sampling;
 
-    /// <summary>Seconds into the track.</summary>
-    public float Elapsed => sound?.Elapsed ?? 0f;
-
-    /// <summary>Set when the game refused to start a track, so the window can say so.</summary>
+    /// <summary>Set when the game would not start a track, so the window can say so.</summary>
     public string LastError { get; private set; } = string.Empty;
 
     public void Play(Song song)
     {
-        // Whatever was playing goes first, including its duck. Starting a second track over the
-        // top of the first would leave the first one's handle unreachable and unstoppable.
+        // Whatever was sounding goes first, including its duck.
         Stop();
-
-        if (!song.Playable)
-        {
-            LastError = "There is no music behind that roll.";
-            return;
-        }
 
         Current = song;
         LastError = string.Empty;
@@ -48,44 +48,41 @@ public sealed class PreviewPlayer : IDisposable
         if (Plugin.Config.DuckGameMusic)
             ducker.Duck(Plugin.Config.DuckedMusicVolume);
 
-        sound = OrchestrionAudio.Play(song.FilePath, Plugin.Config.PreviewVolume);
-
-        if (sound != null)
+        if (!OrchestrionSampler.Play(song.Id))
+        {
+            LastError = "The game would not start that track.";
+            ducker.Restore();
             return;
+        }
 
-        // Nothing started, so nothing should stay ducked.
-        LastError = "The game would not start that track.";
-        ducker.Restore();
+        ours = true;
     }
-
-    public void SetVolume(float volume) => sound?.SetVolume(volume);
-
-    /// <summary>
-    /// The closest the game gives us to a pause. Unverified, and stopping is the honest fallback.
-    /// </summary>
-    public void TryHold(bool held) => sound?.SetSpeed(held ? 0f : 1f);
 
     public void Stop()
     {
-        sound?.Stop();
-        sound = null;
+        if (ours)
+            OrchestrionSampler.Stop();
+
+        ours = false;
         ducker.Restore();
     }
 
     /// <summary>
-    /// Notices a track that finished on its own, so the music comes back without a button press.
+    /// Notices a track that stopped without us, so the music comes back without a button press.
     /// </summary>
     /// <remarks>
-    /// Called every frame the window is up. Without it, a track that runs to its end leaves the
-    /// game's music ducked until somebody happens to press stop — the exact failure this whole
-    /// class is arranged to prevent, arriving by the one route that needs no mistake to reach.
+    /// Called every frame a window is up. Without it, a preview that ends on its own leaves the
+    /// game's music ducked until somebody happens to press stop — the exact failure this is all
+    /// arranged to prevent, arriving by the one route that needs no mistake to reach.
     /// </remarks>
     public void Poll()
     {
-        if (sound == null)
+        if (!ours)
             return;
 
-        if (!sound.IsPlaying)
+        // Unknown means the game could not be asked this frame, which is not the same as silent.
+        // Treating it as stopped would cut a preview short on a hiccup.
+        if (OrchestrionSampler.State == SamplerState.Silent)
             Stop();
     }
 

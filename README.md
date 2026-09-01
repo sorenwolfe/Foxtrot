@@ -50,17 +50,22 @@ one are exactly the ones you don't have yet.
 **Not learned** filter that narrows the list to exactly the ones still out there — so the browser
 answers "what should I go and find?" rather than just "what exists?".
 
-**A small player.** Play, stop, a volume slider that's separate from your game volume, and a
-running time. Star the ones you like and the browser will filter down to just those.
+**A small player.** One button that plays or stops depending on what's happening, a volume
+slider separate from your game volume, and a star. It reads the game's own playback state, so if
+someone's orchestrion is going it says so rather than offering to stop music that isn't yours.
 
 **Your zone music gets out of the way.** While a preview plays, the game's music fades down, and
 it fades back the moment you stop — including if you unload the plugin halfway through a track.
 Two tracks at once makes a preview impossible to judge. You can turn this off, or change how far
 down it goes, in settings.
 
-**It uses the game's own player.** Previews go through the same call the in-game orchestrion makes,
-on the game's own orchestrion audio channel. So it sounds exactly like owning the roll would, and
-it respects your audio setup rather than talking over it.
+**It uses the game's own sampler.** Previews go through the same call the orchestrion in a house
+makes when you audition a roll. So it sounds exactly like owning the roll would, respects your
+audio setup, and the buttons reflect what the game is actually doing rather than what the plugin
+last asked for.
+
+**It looks like RaidPlan.** Same dark panels, same accent colour, same soft shadows. One switch in
+settings turns it off if you'd rather it matched your other plugins.
 
 ---
 
@@ -78,11 +83,8 @@ it respects your audio setup rather than talking over it.
 
 ## Known limits
 
-**No seek bar.** The game gives us elapsed time but no way to jump to a point in the track, so you
-can see how far in you are but not scrub.
-
-**"Hold" isn't a real pause.** The game has no pause for this kind of sound. Hold slows the track
-to a standstill, which is the closest thing available — if it misbehaves, Stop and play it again.
+**No seek bar, and no pause.** The game's sampler starts and stops; it offers no way to jump to a
+point in a track or to hold one. Stop and play it again is the whole vocabulary.
 
 **No right-click in the orchestrion list yet.** Rolls in your *bags* work. Rows in the in-game
 orchestrion list don't, because working out which row is selected needs a detail that can only be

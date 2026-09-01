@@ -24,6 +24,17 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Show it in the in-game orchestrion list too.</summary>
     public bool ContextMenuOnOrchestrionList { get; set; } = true;
 
+    // ---------------------------------------------------------------- theme
+
+    /// <summary>The dark glass look. Off falls back to whatever Dalamud's style is.</summary>
+    public bool ThemeEnabled { get; set; } = true;
+
+    /// <summary>Accent colour as 0xRRGGBB. Zero means the default indigo.</summary>
+    public uint ThemeAccent { get; set; }
+
+    /// <summary>Soft shadow behind the plugin's windows.</summary>
+    public bool ThemeShadows { get; set; } = true;
+
     /// <summary>Track ids the player has starred, newest last.</summary>
     public System.Collections.Generic.List<uint> Favourites { get; set; } = new();
 
