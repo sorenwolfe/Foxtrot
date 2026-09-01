@@ -29,30 +29,61 @@ public sealed class Plugin : IDalamudPlugin
     internal static BrowserWindow Browser { get; private set; } = null!;
 
     private static BgmDucker ducker = null!;
-    private static RollContextMenu contextMenu = null!;
+    private static RollContextMenu? contextMenu;
     private static ConfigWindow configWindow = null!;
 
     public readonly WindowSystem WindowSystem = new("Foxtrot");
 
     public Plugin()
     {
-        Config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        try
+        {
+            // Everything here is ours. Nothing below this block has touched the game yet, so a
+            // throw in any of it leaves nothing attached to clean up.
+            Log.Debug("Foxtrot: reading settings.");
+            Config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
-        Library = new SongLibrary();
-        Library.Load();
+            Log.Debug("Foxtrot: reading the orchestrion sheets.");
+            Library = new SongLibrary();
+            Library.Load();
 
-        Ownership = new RollOwnership();
-        ducker = new BgmDucker(new GameMusicBus());
-        Preview = new PreviewPlayer(ducker);
+            Log.Debug("Foxtrot: building services.");
+            Ownership = new RollOwnership();
+            ducker = new BgmDucker(new GameMusicBus());
+            Preview = new PreviewPlayer(ducker);
 
-        Player = new PlayerWindow(Preview);
-        Browser = new BrowserWindow(Library, Preview);
-        configWindow = new ConfigWindow();
+            Log.Debug("Foxtrot: building windows.");
+            Player = new PlayerWindow(Preview);
+            Browser = new BrowserWindow(Library, Preview);
+            configWindow = new ConfigWindow();
 
-        WindowSystem.AddWindow(Player);
-        WindowSystem.AddWindow(Browser);
-        WindowSystem.AddWindow(configWindow);
+            WindowSystem.AddWindow(Player);
+            WindowSystem.AddWindow(Browser);
+            WindowSystem.AddWindow(configWindow);
 
+            Log.Debug("Foxtrot: attaching to the game.");
+            Attach();
+
+            Log.Debug("Foxtrot: loaded.");
+        }
+        catch (Exception ex)
+        {
+            // Dalamud does not call Dispose when a constructor throws. Anything already attached
+            // would stay attached to an assembly that is about to be dropped, and the next load
+            // would fail on a command that is still registered — reported only as "Load failed",
+            // which is what sends someone hunting through the wrong version.
+            Log.Error(ex, "Foxtrot failed to load; detaching what it had attached.");
+            Detach();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Everything that reaches into the game. Kept together and done last, so there is exactly one
+    /// place that has to be undone and exactly one moment when it becomes necessary.
+    /// </summary>
+    private void Attach()
+    {
         contextMenu = new RollContextMenu(Library, OnPreviewRequested);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -69,6 +100,29 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfig;
         PluginInterface.UiBuilder.OpenMainUi += ToggleBrowser;
+    }
+
+    /// <summary>
+    /// Undoes <see cref="Attach"/>. Safe to call twice, and safe on a half-built plugin.
+    /// </summary>
+    /// <remarks>
+    /// Every step is null-tolerant and individually guarded. Removing a command that was never
+    /// added is harmless; failing to remove one that was is what makes the next load impossible.
+    /// </remarks>
+    private void Detach()
+    {
+        Safely(() => CommandManager?.RemoveHandler(CommandName), "remove " + CommandName);
+        Safely(() => CommandManager?.RemoveHandler(CommandAlias), "remove " + CommandAlias);
+
+        if (PluginInterface?.UiBuilder is { } ui)
+        {
+            Safely(() => ui.Draw -= WindowSystem.Draw, "detach the draw hook");
+            Safely(() => ui.OpenConfigUi -= ToggleConfig, "detach the config button");
+            Safely(() => ui.OpenMainUi -= ToggleBrowser, "detach the main button");
+        }
+
+        Safely(() => contextMenu?.Dispose(), "detach the context menu");
+        contextMenu = null;
     }
 
     internal static void SaveConfig() => PluginInterface.SavePluginConfig(Config);
@@ -168,23 +222,18 @@ public sealed class Plugin : IDalamudPlugin
     {
         // Detach from the game first. Everything after this is ours and can be leaked without
         // consequence; these are Dalamud's and must come off no matter what happens below.
-        Safely(() => CommandManager.RemoveHandler(CommandName), "remove " + CommandName);
-        Safely(() => CommandManager.RemoveHandler(CommandAlias), "remove " + CommandAlias);
-        Safely(() => PluginInterface.UiBuilder.Draw -= WindowSystem.Draw, "detach the draw hook");
-        Safely(() => PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfig, "detach the config button");
-        Safely(() => PluginInterface.UiBuilder.OpenMainUi -= ToggleBrowser, "detach the main button");
-        Safely(contextMenu.Dispose, "detach the context menu");
+        Detach();
 
         // Before anything else of ours: this is what gives the player their music back, and it is
         // the one step whose failure they would actually notice.
-        Safely(Preview.Dispose, "stop the preview");
-        Safely(ducker.Dispose, "restore the game music");
+        Safely(() => Preview?.Dispose(), "stop the preview");
+        Safely(() => ducker?.Dispose(), "restore the game music");
 
-        Safely(WindowSystem.RemoveAllWindows, "remove the windows");
-        Safely(Player.Dispose, "dispose the player window");
-        Safely(Browser.Dispose, "dispose the browser window");
-        Safely(configWindow.Dispose, "dispose the settings window");
+        Safely(() => WindowSystem?.RemoveAllWindows(), "remove the windows");
+        Safely(() => Player?.Dispose(), "dispose the player window");
+        Safely(() => Browser?.Dispose(), "dispose the browser window");
+        Safely(() => configWindow?.Dispose(), "dispose the settings window");
 
-        Safely(() => PluginInterface.SavePluginConfig(Config), "save the settings");
+        Safely(() => PluginInterface?.SavePluginConfig(Config), "save the settings");
     }
 }

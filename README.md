@@ -98,6 +98,11 @@ plugin managed to tie that roll to a track. Run `/foxtrot diag` — it prints ho
 mapped and shows a few examples. If it says nothing was mapped, that's the bug, and that output is
 what to report.
 
+**"Failed to update plugin Foxtrot (Load failed)."** Restart the game once — that clears whatever
+the previous version left behind — then update again. If it happens a second time, open `/xllog`
+and look for a line starting `Foxtrot:`. The plugin logs each stage of its startup, so the last
+one it printed says how far it got, and any exception after it is the real cause.
+
 **The browser is empty.** Foxtrot reads the track list from the game's own data files at startup.
 If it comes up empty, something went wrong reading them — the count is shown at the bottom of the
 settings window, and there'll be a line in the Dalamud log.
