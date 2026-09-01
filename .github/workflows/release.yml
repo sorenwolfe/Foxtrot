@@ -105,3 +105,20 @@ jobs:
             Foxtrot.zip
             ${{ steps.archive.outputs.manifest }}
           generate_release_notes: true
+
+      # The shared list is a copy of this repository's version, and a copy that lags is not merely
+      # stale — it advertises a version the download no longer contains, and the install fails
+      # outright. Waiting for a schedule left that window open, so the release closes it itself.
+      # Without the token this is skipped, and the scheduled rebuild picks it up as before.
+      - name: Tell the shared plugin list to rebuild
+        if: ${{ secrets.AGGREGATOR_TOKEN != '' }}
+        shell: pwsh
+        run: |
+          $headers = @{
+            Accept        = "application/vnd.github+json"
+            Authorization = "Bearer ${{ secrets.AGGREGATOR_TOKEN }}"
+          }
+          Invoke-RestMethod -Method Post -Headers $headers `
+            -Uri "https://api.github.com/repos/sorenwolfe/XIVPlugins/dispatches" `
+            -Body '{"event_type":"plugin-released"}'
+          Write-Host "Asked XIVPlugins to rebuild."

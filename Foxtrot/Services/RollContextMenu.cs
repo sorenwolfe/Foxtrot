@@ -40,7 +40,7 @@ public sealed class RollContextMenu : IDisposable
 
             args.AddMenuItem(new MenuItem
             {
-                Name = new SeString(new Dalamud.Game.Text.SeStringHandling.Payloads.TextPayload("Preview")),
+                Name = "Preview",
                 PrefixChar = 'F',
                 PrefixColor = 539,
                 Priority = -1,
@@ -67,8 +67,15 @@ public sealed class RollContextMenu : IDisposable
             if (inventory.TargetItem is not { } item)
                 return false;
 
-            // High-quality ids are offset; rolls are never HQ, but the mask costs nothing.
-            return library.TryGetByItem(item.ItemId % 500000, out song) && song.Playable;
+            // BaseItemId is the game's own answer with the high-quality and collectable offsets
+            // already taken off, which is what the sheets are keyed by.
+            if (library.TryGetByItem(item.BaseItemId, out song) && song.Playable)
+                return true;
+
+            // Worth a line when it declines: "no Preview appeared" is otherwise indistinguishable
+            // from the plugin not running at all.
+            Plugin.Log.Verbose($"Foxtrot: no track for item {item.BaseItemId}.");
+            return false;
         }
 
         if (!Plugin.Config.ContextMenuOnOrchestrionList)

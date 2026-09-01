@@ -26,6 +26,18 @@ public sealed class SongLibrary
     private readonly Dictionary<uint, Song> byId = new();
     private readonly Dictionary<uint, uint> songByItem = new();
 
+    /// <summary>What the last load actually managed, so it can be reported rather than guessed at.</summary>
+    public uint RollCategoryId { get; private set; }
+
+    public int RollsMatchedByAction { get; private set; }
+
+    public int RollsMatchedByName { get; private set; }
+
+    /// <summary>Items that look like rolls but could not be tied to a track. Should be zero.</summary>
+    public int RollsUnmatched { get; private set; }
+
+    public int RollItemCount => songByItem.Count;
+
     public IReadOnlyCollection<Song> All => byId.Values;
 
     public IReadOnlyList<string> Categories { get; private set; } = Array.Empty<string>();
@@ -52,7 +64,10 @@ public sealed class SongLibrary
             LoadRollItems();
             Categories = SongSearch.Categories(byId.Values);
 
-            Plugin.Log.Information($"Foxtrot: {byId.Count} orchestrion track(s), {songByItem.Count} roll item(s).");
+            Plugin.Log.Information(
+                $"Foxtrot: {byId.Count} track(s); {songByItem.Count} roll item(s) " +
+                $"({RollsMatchedByAction} by action, {RollsMatchedByName} by name, " +
+                $"{RollsUnmatched} unmatched); roll category {RollCategoryId}.");
         }
         catch (Exception ex)
         {
@@ -108,10 +123,13 @@ public sealed class SongLibrary
     /// Maps roll items to the track they teach, so a right-click in a bag can find the music.
     /// </summary>
     /// <remarks>
-    /// The item's action carries the track id in its first data slot. That slot means different
-    /// things for different kinds of item, so this only trusts it for items in the Orchestrion
-    /// Roll category — otherwise a random consumable whose data happens to be 42 would offer to
-    /// play track 42.
+    /// Two independent ways, because the first cannot be verified outside a running game. The
+    /// item's action carries a track id in its first data slot — the right answer where it works.
+    /// Failing that, roll items are named "&lt;Track&gt; Orchestrion Roll", and that is checkable.
+    ///
+    /// Nothing is examined unless it is a roll, by category or by name. That slot means different
+    /// things for different kinds of item, so without the guard a consumable whose data happened
+    /// to be 42 would offer to play track 42.
     /// </remarks>
     private void LoadRollItems()
     {
@@ -119,22 +137,67 @@ public sealed class SongLibrary
         if (items == null)
             return;
 
-        var rollCategory = FindRollCategory();
+        RollCategoryId = FindRollCategory();
+        RollsMatchedByAction = 0;
+        RollsMatchedByName = 0;
+        RollsUnmatched = 0;
+
+        var byName = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+        foreach (var song in byId.Values)
+            byName.TryAdd(song.Name, song.Id);
 
         foreach (var item in items)
         {
-            if (item.ItemUICategory.RowId != rollCategory)
+            var name = item.Name.ExtractText().Trim();
+            var inCategory = item.ItemUICategory.RowId == RollCategoryId;
+            var namedLikeRoll = RollNames.LooksLikeRoll(name);
+
+            if (!inCategory && !namedLikeRoll)
                 continue;
 
-            if (item.ItemAction.ValueNullable is not { } action)
-                continue;
+            uint songId = 0;
+            if (item.ItemAction.ValueNullable is { } action && action.Data.Count > 0)
+            {
+                var candidate = (uint)action.Data[0];
+                if (candidate != 0 && byId.ContainsKey(candidate))
+                {
+                    songId = candidate;
+                    RollsMatchedByAction++;
+                }
+            }
 
-            if (action.Data.Count == 0)
-                continue;
+            // Only when the action gave nothing usable. This is what covers the case where the
+            // assumptions about that sheet turn out to be wrong.
+            if (songId == 0 && namedLikeRoll)
+            {
+                var stem = RollNames.Stem(name);
+                if (stem.Length > 0 && byName.TryGetValue(stem, out var found))
+                {
+                    songId = found;
+                    RollsMatchedByName++;
+                }
+            }
 
-            var songId = (uint)action.Data[0];
-            if (songId != 0 && byId.ContainsKey(songId))
+            if (songId != 0)
                 songByItem[item.RowId] = songId;
+            else
+                RollsUnmatched++;
+        }
+    }
+
+    /// <summary>A few real item-to-track pairs, for the diagnostics command.</summary>
+    public IEnumerable<string> SampleMappings(int count)
+    {
+        var items = Plugin.Data.GetExcelSheet<Item>();
+
+        foreach (var pair in songByItem.Take(count))
+        {
+            var itemName = items != null && items.TryGetRow(pair.Key, out var row)
+                ? row.Name.ExtractText()
+                : $"item {pair.Key}";
+
+            var track = byId.TryGetValue(pair.Value, out var song) ? song.Name : $"track {pair.Value}";
+            yield return $"{itemName} -> {track}";
         }
     }
 

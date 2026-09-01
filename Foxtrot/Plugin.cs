@@ -18,6 +18,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IDataManager Data { get; private set; } = null!;
     [PluginService] internal static IContextMenu ContextMenu { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     internal static Configuration Config { get; private set; } = null!;
@@ -57,7 +58,7 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
             HelpMessage = "Opens the orchestrion browser. /foxtrot player opens the player, " +
-                          "/foxtrot stop stops whatever is playing.",
+                          "/foxtrot stop stops whatever is playing, /foxtrot diag reports what it read.",
         });
 
         CommandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
@@ -96,10 +97,47 @@ public sealed class Plugin : IDalamudPlugin
                 ToggleConfig();
                 break;
 
+            case "diag" or "debug":
+                ReportDiagnostics();
+                break;
+
             default:
                 ToggleBrowser();
                 break;
         }
+    }
+
+    /// <summary>
+    /// Prints what the plugin actually managed to read, into chat.
+    /// </summary>
+    /// <remarks>
+    /// Whether a roll maps to a track depends on how the game's item sheets are laid out, which
+    /// cannot be checked anywhere but a running game. Without this, "no Preview appeared" is a
+    /// dead end — it looks identical whether the plugin is not running, the item is not a roll, or
+    /// the mapping came up empty. This says which.
+    /// </remarks>
+    private static void ReportDiagnostics()
+    {
+        var library = Library;
+
+        void Say(string line) => ChatGui.Print(line, "Foxtrot", null);
+
+        Say($"{library.Count} track(s) readable, {library.RollItemCount} roll item(s) mapped.");
+        Say($"Matched {library.RollsMatchedByAction} by item action, " +
+            $"{library.RollsMatchedByName} by name, {library.RollsUnmatched} not matched.");
+        Say($"Roll item category resolved to {library.RollCategoryId} " +
+            $"(the long-standing value is {SongLibrary.FallbackRollCategory}).");
+
+        if (library.RollItemCount == 0)
+        {
+            Say("Nothing mapped, so no roll will offer a preview. That is the bug to report.");
+            return;
+        }
+
+        // A couple of real examples say more than any count: they show the mapping is not just
+        // non-empty but pointing at the right music.
+        foreach (var line in library.SampleMappings(3))
+            Say("  e.g. " + line);
     }
 
     private void ToggleBrowser() => Browser.IsOpen = !Browser.IsOpen;

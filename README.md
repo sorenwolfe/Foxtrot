@@ -72,6 +72,7 @@ it respects your audio setup rather than talking over it.
 | `/foxtrot player` | Opens and closes the small player |
 | `/foxtrot stop` | Stops whatever is playing |
 | `/foxtrot config` | Opens the settings |
+| `/foxtrot diag` | Prints what it managed to read, for when something looks wrong |
 
 ---
 
@@ -92,8 +93,10 @@ in the meantime — it plays more anyway.
 
 ## If something isn't working
 
-**The Preview entry doesn't appear.** It only shows on actual orchestrion rolls. Check the
-right-click options in settings are on.
+**The Preview entry doesn't appear.** It only shows on actual orchestrion rolls, and only if the
+plugin managed to tie that roll to a track. Run `/foxtrot diag` — it prints how many rolls it
+mapped and shows a few examples. If it says nothing was mapped, that's the bug, and that output is
+what to report.
 
 **The browser is empty.** Foxtrot reads the track list from the game's own data files at startup.
 If it comes up empty, something went wrong reading them — the count is shown at the bottom of the
