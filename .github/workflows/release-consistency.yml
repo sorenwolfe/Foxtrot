@@ -1,0 +1,75 @@
+name: Release consistency
+
+# Catches the mistake that breaks installs: bumping the version in repo.json and forgetting to
+# tag, so the list advertises a version the download does not contain. Dalamud refuses that
+# outright — "Distributed plugin version does not match repo version" — and nothing before the
+# player's failed update says a word about it.
+on:
+  push:
+    branches: ['main']
+    paths: ['repo.json', '**/*.csproj', '**/*.json']
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Does the published release match what repo.json advertises?
+        shell: python
+        run: |
+          import io, json, pathlib, re, sys, urllib.error, urllib.request, zipfile
+
+          entries = json.loads(pathlib.Path("repo.json").read_text())
+          problems = []
+
+          for entry in entries:
+              name = entry["InternalName"]
+              listed = entry["AssemblyVersion"]
+
+              # The project file is the source of truth for what a build would produce.
+              csproj = next(pathlib.Path(".").rglob(f"{name}.csproj"), None)
+              if csproj is not None:
+                  found = re.search(r"<Version>([^<]+)</Version>", csproj.read_text())
+                  if found and found.group(1) != listed:
+                      problems.append(
+                          f"{name}: {csproj} says {found.group(1)} but repo.json says {listed}. "
+                          f"These must match before tagging.")
+
+              url = entry["DownloadLinkInstall"]
+              try:
+                  request = urllib.request.Request(url, headers={"User-Agent": "release-consistency"})
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      payload = response.read()
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 404:
+                      problems.append(
+                          f"{name}: repo.json advertises {listed} but there is no release to "
+                          f"download. Tag one: git tag v{listed.rsplit('.', 1)[0]} && git push --tags")
+                      continue
+                  problems.append(f"{name}: could not fetch the release ({exc})")
+                  continue
+              except Exception as exc:
+                  problems.append(f"{name}: could not fetch the release ({exc})")
+                  continue
+
+              with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                  manifest = json.loads(archive.read(f"{name}.json").decode("utf-8"))
+
+              built = manifest.get("AssemblyVersion")
+              if built != listed:
+                  problems.append(
+                      f"{name}: repo.json advertises {listed} but the published release contains "
+                      f"{built}. Anyone updating is told one version and handed another, and the "
+                      f"install fails. Tag a release: "
+                      f"git tag v{listed.rsplit('.', 1)[0]} && git push --tags")
+              else:
+                  print(f"{name}: {listed} advertised and {built} published — consistent.")
+
+          for problem in problems:
+              print(f"::error::{problem}")
+
+          sys.exit(1 if problems else 0)

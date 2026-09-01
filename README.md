@@ -98,10 +98,16 @@ plugin managed to tie that roll to a track. Run `/foxtrot diag` — it prints ho
 mapped and shows a few examples. If it says nothing was mapped, that's the bug, and that output is
 what to report.
 
-**"Failed to update plugin Foxtrot (Load failed)."** Restart the game once — that clears whatever
-the previous version left behind — then update again. If it happens a second time, open `/xllog`
-and look for a line starting `Foxtrot:`. The plugin logs each stage of its startup, so the last
-one it printed says how far it got, and any exception after it is the real cause.
+**"Failed to update plugin Foxtrot (Load failed)."** Open `/xllog` and read the actual error
+first — the wording matters:
+
+- *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
+  release was tagged, so the download still holds the old build. Tag one:
+  `git tag v0.2.4 && git push --tags`. The **Release consistency** workflow catches this on push,
+  before anyone sees it.
+- Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
+  logs each stage of startup, so the last one printed says how far it got, and the exception after
+  it is the cause. Restarting the game once clears anything a failed load left behind.
 
 **The browser is empty.** Foxtrot reads the track list from the game's own data files at startup.
 If it comes up empty, something went wrong reading them — the count is shown at the bottom of the
@@ -125,6 +131,18 @@ Two things the build checks before it will pass:
   "?" in the plugin list, with nothing anywhere to say why.
 - The version in `Foxtrot.csproj` matches the one in `repo.json`. If they disagree, nobody is
   offered the update and nothing looks broken.
+
+Separately, **Release consistency** runs on every push to `main` and compares what `repo.json`
+advertises against what the published release actually contains. Bumping the version without
+tagging a release is the one mistake that breaks installs for everyone, and it is invisible from
+this side — the list looks right, the download link works, and only the player sees it fail.
+
+### Releasing
+
+1. Bump `<Version>` in `Foxtrot.csproj`.
+2. Bump `AssemblyVersion` in `repo.json` to match.
+3. Commit and push.
+4. **Tag it**, or nothing is built: `git tag v0.2.4 && git push --tags`.
 
 ---
 
