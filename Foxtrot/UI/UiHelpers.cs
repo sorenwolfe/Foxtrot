@@ -4,6 +4,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility;
 
+using Foxtrot.UI.Theme;
+
 namespace Foxtrot.UI;
 
 /// <summary>Small drawing and layout helpers shared by every window.</summary>
@@ -94,6 +96,31 @@ public static class UiHelpers
 
         ImGui.PopStyleColor(3);
         return pressed;
+    }
+
+    /// <summary>
+    /// A section title, with a short accent rule under the words rather than a full-width line.
+    /// </summary>
+    /// <remarks>
+    /// A grey label above a rule that runs the whole window reads as a form divider and cuts the
+    /// window into slabs. Underlining only the title groups the heading with what follows it,
+    /// which is what a heading is for.
+    /// </remarks>
+    public static void SectionHeading(string text)
+    {
+        ImGui.Dummy(Scaled(0, 6));
+        ImGui.TextColored(Palette.Vec(Palette.Accent, 0.85f), text);
+
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        var y = max.Y + (3f * Scale);
+
+        ImGui.GetWindowDrawList().AddRectFilled(
+            new Vector2(min.X, y),
+            new Vector2(max.X, y + (1.5f * Scale)),
+            Palette.Pack(Palette.Accent, 0.55f));
+
+        ImGui.Dummy(Scaled(0, 6));
     }
 
     public static void Tooltip(string body) => Tooltip(null, body);

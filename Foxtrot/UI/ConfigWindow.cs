@@ -35,7 +35,7 @@ public sealed class ConfigWindow : Window, IDisposable
 
         var config = Plugin.Config;
 
-        Heading("Playback");
+        UiHelpers.SectionHeading("Playback");
 
         if (Percent("Preview volume", config.PreviewVolume, out var volume))
         {
@@ -66,7 +66,7 @@ public sealed class ConfigWindow : Window, IDisposable
             Plugin.SaveConfig();
         }
 
-        Heading("Right-click menu");
+        UiHelpers.SectionHeading("Right-click menu");
 
         var onItems = config.ContextMenuOnItems;
         if (ImGui.Checkbox("On orchestrion rolls in my bags", ref onItems))
@@ -107,7 +107,7 @@ public sealed class ConfigWindow : Window, IDisposable
             Plugin.SaveConfig();
         }
 
-        Heading("Appearance");
+        UiHelpers.SectionHeading("Appearance");
 
         var themed = config.ThemeEnabled;
         if (ImGui.Checkbox("Use the Foxtrot look", ref themed))
@@ -142,14 +142,6 @@ public sealed class ConfigWindow : Window, IDisposable
         ImGui.TextDisabled(
             $"{Plugin.Library.Count} track(s), {Plugin.Library.RollItemCount} roll item(s), " +
             $"{config.Favourites.Count} starred.  /foxtrot diag says more.");
-    }
-
-    private static void Heading(string text)
-    {
-        ImGui.Spacing();
-        ImGui.TextDisabled(text);
-        ImGui.Separator();
-        ImGui.Spacing();
     }
 
     /// <summary>

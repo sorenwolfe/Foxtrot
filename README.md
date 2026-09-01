@@ -55,11 +55,18 @@ one are exactly the ones you don't have yet.
 **Not learned** filter that narrows the list to exactly the ones still out there — so the browser
 answers "what should I go and find?" rather than just "what exists?".
 
-**A small player.** One button that plays or stops depending on what's happening, a volume
-slider separate from your game volume, and a star. It reads the game's own playback state, so if
-someone's orchestrion is going it says so rather than offering to stop music that isn't yours. The
-volume slider drives the game's orchestrion channel and hands it back exactly as it found it, so it
-moves the preview and nothing else.
+**A player that looks like one.** The track name is the biggest thing in the window, an equalizer
+runs under it, and a running time counts up beside one button that plays or stops depending on
+what's happening. It reads the game's own playback state, so if someone's orchestrion is going it
+says so rather than offering to stop music that isn't yours. The volume slider drives the game's
+orchestrion channel and hands it back exactly as it found it, so it moves the preview and nothing
+else.
+
+**The bars are ornament, and I'd rather say so.** The game's sampler exposes no amplitude and no
+spectrum, so nothing can follow the actual music. What they report honestly is whether something
+is playing — they move when it is and lie flat when it isn't, which is what anyone reads a level
+meter for at a glance. The running time is real. There's no progress bar because no track length
+exists anywhere in the game's data, and a bar two-thirds full would be a guess drawn as a fact.
 
 **Your zone music gets out of the way.** While a preview plays, the game's music fades down, and
 it fades back the moment you stop — including if you unload the plugin halfway through a track.
@@ -135,7 +142,7 @@ first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* means `repo.json` was bumped but no
   release was tagged, so the download still holds the old build. Tag one:
-  `git tag v0.5.0` then `git push --tags`. The **Release consistency** workflow catches this on push,
+  `git tag v0.6.0` then `git push --tags`. The **Release consistency** workflow catches this on push,
   before anyone sees it.
 - Anything else is the plugin itself failing to start. Look for lines beginning `Foxtrot:` — it
   logs each stage of startup, so the last one printed says how far it got, and the exception after
@@ -197,7 +204,7 @@ every correct release until the check was worth nothing to read.
 1. Bump `<Version>` in `Foxtrot.csproj`.
 2. Bump `AssemblyVersion` in `repo.json` to match.
 3. Commit and push.
-4. **Tag it**, or nothing is built: `git tag v0.5.0` then `git push --tags`.
+4. **Tag it**, or nothing is built: `git tag v0.6.0` then `git push --tags`.
 
 ---
 

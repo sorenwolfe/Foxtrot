@@ -14,9 +14,16 @@ namespace Foxtrot.UI;
 /// It answers one question — what is this track — so it carries the name, the transport, a volume
 /// and a running time, and nothing else. Anything more and it stops being something you can leave
 /// open in a corner.
+///
+/// The layout leans on space and weight rather than on lines and boxes: the track name is the
+/// largest thing in the window, everything else recedes, and the only saturated colour is the
+/// equalizer and the play button. A panel with a border around every element reads as a form, and
+/// this is meant to read as a player.
 /// </remarks>
 public sealed class PlayerWindow : Window, IDisposable
 {
+    private const float TitleScale = 1.35f;
+
     private readonly PreviewPlayer player;
 
     private ThemeScope theme;
@@ -53,12 +60,16 @@ public sealed class PlayerWindow : Window, IDisposable
             return;
         }
 
+        ImGui.Dummy(UiHelpers.Scaled(0, 2));
+
         DrawTitle(current);
-        ImGui.Separator();
-        ImGui.Spacing();
+
+        ImGui.Dummy(UiHelpers.Scaled(0, 8));
+        Equalizer.Draw("##levels", new Vector2(-1, 34f * UiHelpers.Scale), player.IsPlaying);
+        ImGui.Dummy(UiHelpers.Scaled(0, 6));
 
         DrawTransport(current);
-        ImGui.Spacing();
+        ImGui.Dummy(UiHelpers.Scaled(0, 4));
         DrawVolume();
 
         if (player.LastError.Length > 0)
@@ -70,18 +81,25 @@ public sealed class PlayerWindow : Window, IDisposable
 
     private void DrawEmpty()
     {
+        ImGui.Dummy(UiHelpers.Scaled(0, 4));
+        Equalizer.Draw("##levels", new Vector2(-1, 34f * UiHelpers.Scale), false);
+        ImGui.Dummy(UiHelpers.Scaled(0, 6));
+
         ImGui.TextDisabled("Nothing loaded.");
         ImGui.Spacing();
-        ImGui.TextWrapped("Right-click an orchestrion roll in your bags and choose Preview, or open the browser.");
+        ImGui.TextWrapped("Right-click an orchestrion roll and choose Preview, or open the browser.");
         ImGui.Spacing();
 
-        if (ImGui.Button("Browse all tracks", new Vector2(-1, ImGui.GetFrameHeight() * 1.2f)))
+        if (UiHelpers.AccentButton("Browse all tracks", new Vector2(-1, ImGui.GetFrameHeight() * 1.2f)))
             Plugin.Browser.IsOpen = true;
     }
 
+    /// <summary>The track name, at the size of the thing you actually opened the window to read.</summary>
     private static void DrawTitle(Song current)
     {
+        ImGui.SetWindowFontScale(TitleScale);
         ImGui.TextUnformatted(current.Name);
+        ImGui.SetWindowFontScale(1f);
 
         if (current.Description.Length > 0 && ImGui.IsItemHovered())
             UiHelpers.Tooltip(current.Description);
@@ -91,18 +109,19 @@ public sealed class PlayerWindow : Window, IDisposable
         if (Plugin.Ownership.Available && !Plugin.Ownership.Owns(current.Id))
             note = note.Length > 0 ? note + "  ·  not learned yet" : "not learned yet";
 
-        if (note.Length > 0)
-            ImGui.TextDisabled(note);
+        // Always drawn, even when empty, so the window does not change height when a track with no
+        // category follows one that has one.
+        ImGui.TextColored(Palette.Vec(Palette.TextDim), note.Length > 0 ? note : " ");
     }
 
     private void DrawTransport(Song current)
     {
         var playing = player.IsPlaying;
-        var wide = new Vector2(ImGui.GetFrameHeight() * 3.4f, ImGui.GetFrameHeight() * 1.2f);
+        var height = ImGui.GetFrameHeight() * 1.3f;
 
         // One button that does the obvious thing, rather than a Play and a Stop where only one is
         // ever meaningful and the other sits there looking broken.
-        if (UiHelpers.AccentButton(playing ? "Stop" : "Play", wide))
+        if (UiHelpers.AccentButton(playing ? "Stop" : "Play", new Vector2(height * 2.6f, height)))
         {
             if (playing)
                 player.Stop();
@@ -113,22 +132,23 @@ public sealed class PlayerWindow : Window, IDisposable
         ImGui.SameLine();
 
         var star = Plugin.Config.IsFavourite(current.Id);
-        if (ImGui.Button(star ? "Starred" : "Star", wide))
+        if (ImGui.Button(star ? "Starred" : "Star", new Vector2(height * 2.6f, height)))
         {
             Plugin.Config.ToggleFavourite(current.Id);
             Plugin.SaveConfig();
         }
 
-        ImGui.SameLine();
-        ImGui.AlignTextToFramePadding();
-
-        // Someone else's orchestrion is worth saying out loud, or Stop looks broken when it is
-        // simply not ours to stop.
+        // The running time and the state share the right-hand end, because only one of them is
+        // ever interesting: a time while it plays, a reason while it does not.
         var elsewhere = !playing && OrchestrionSampler.State == SamplerState.Playing;
-        if (elsewhere)
-            ImGui.TextDisabled("an orchestrion is playing");
-        else
-            ImGui.TextDisabled(playing ? "playing" : "stopped");
+        var trailing = playing ? TrackTime.Format(player.Elapsed)
+            : elsewhere ? "an orchestrion is playing"
+            : "stopped";
+
+        var width = UiHelpers.TextSize(trailing).X;
+        ImGui.SameLine(ImGui.GetContentRegionMax().X - width);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + ((height - ImGui.GetTextLineHeight()) * 0.5f));
+        ImGui.TextColored(Palette.Vec(playing ? Palette.Text : Palette.TextDim), trailing);
     }
 
     private void DrawVolume()

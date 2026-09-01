@@ -20,6 +20,7 @@ public sealed class PreviewPlayer : IDisposable
     private readonly BgmDucker volume;
 
     private bool ours;
+    private long startedAt;
 
     public PreviewPlayer(BgmDucker ducker, BgmDucker volume)
     {
@@ -41,6 +42,16 @@ public sealed class PreviewPlayer : IDisposable
 
     /// <summary>Set when the game would not start a track, so the window can say so.</summary>
     public string LastError { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Seconds since this preview started, or zero when nothing is playing.
+    /// </summary>
+    /// <remarks>
+    /// Counted here rather than read from the game, which reports no playback position. There is
+    /// no track length in the sheets either, so this can only ever count up — a running time, not
+    /// a progress bar. Saying "1:24" is honest; drawing a bar two thirds full would not be.
+    /// </remarks>
+    public float Elapsed => IsPlaying ? (Environment.TickCount64 - startedAt) / 1000f : 0f;
 
     public void Play(Song song)
     {
@@ -67,6 +78,7 @@ public sealed class PreviewPlayer : IDisposable
         }
 
         ours = true;
+        startedAt = Environment.TickCount64;
 
         // Before the first frame, or the track begins at whatever spot the game had left in the
         // sampler and audibly slides into place.
