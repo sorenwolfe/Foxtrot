@@ -39,7 +39,7 @@ public sealed class ConfigWindow : Window, IDisposable
 
         if (Percent("Preview volume", config.PreviewVolume, out var volume))
         {
-            config.PreviewVolume = volume;
+            Plugin.Preview.SetVolume(volume);
             Plugin.SaveConfig();
         }
 

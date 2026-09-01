@@ -21,6 +21,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
     internal static Configuration Config { get; private set; } = null!;
     internal static SongLibrary Library { get; private set; } = null!;
@@ -30,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static BrowserWindow Browser { get; private set; } = null!;
 
     private static BgmDucker ducker = null!;
+    private static BgmDucker previewVolume = null!;
     private static RollContextMenu? contextMenu;
     private static ConfigWindow configWindow = null!;
 
@@ -51,7 +53,8 @@ public sealed class Plugin : IDalamudPlugin
             Log.Debug("Foxtrot: building services.");
             Ownership = new RollOwnership();
             ducker = new BgmDucker(new GameMusicBus());
-            Preview = new PreviewPlayer(ducker);
+            previewVolume = new BgmDucker(new GameOrchestrionBus());
+            Preview = new PreviewPlayer(ducker, previewVolume);
 
             Log.Debug("Foxtrot: building windows.");
             Player = new PlayerWindow(Preview);
@@ -98,6 +101,8 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Short form of /foxtrot.",
         });
 
+        Framework.Update += OnFrameworkUpdate;
+
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfig;
         PluginInterface.UiBuilder.OpenMainUi += ToggleBrowser;
@@ -112,6 +117,8 @@ public sealed class Plugin : IDalamudPlugin
     /// </remarks>
     private void Detach()
     {
+        Safely(() => Framework.Update -= OnFrameworkUpdate, "detach the frame hook");
+
         Safely(() => CommandManager?.RemoveHandler(CommandName), "remove " + CommandName);
         Safely(() => CommandManager?.RemoveHandler(CommandAlias), "remove " + CommandAlias);
 
@@ -124,6 +131,27 @@ public sealed class Plugin : IDalamudPlugin
 
         Safely(() => contextMenu?.Dispose(), "detach the context menu");
         contextMenu = null;
+    }
+
+    /// <summary>
+    /// Services the preview once a frame.
+    /// </summary>
+    /// <remarks>
+    /// This used to hang off drawing, so it only ran while a window happened to be open.
+    /// Closing the player mid-track left the zone music ducked and the preview stuck at the
+    /// spot it started from, and nothing brought either back until the window reappeared.
+    /// </remarks>
+    private static void OnFrameworkUpdate(IFramework framework)
+    {
+        try
+        {
+            Preview?.Poll();
+        }
+        catch (Exception ex)
+        {
+            // Once a frame is often enough that a log line per failure would bury the game.
+            Log.Error(ex, "Foxtrot: the preview could not be serviced this frame.");
+        }
     }
 
     internal static void SaveConfig() => PluginInterface.SavePluginConfig(Config);
@@ -228,6 +256,7 @@ public sealed class Plugin : IDalamudPlugin
         // Before anything else of ours: this is what gives the player their music back, and it is
         // the one step whose failure they would actually notice.
         Safely(() => Preview?.Dispose(), "stop the preview");
+        Safely(() => previewVolume?.Dispose(), "restore the orchestrion volume");
         Safely(() => ducker?.Dispose(), "restore the game music");
 
         Safely(() => WindowSystem?.RemoveAllWindows(), "remove the windows");

@@ -17,10 +17,15 @@ namespace Foxtrot.Services;
 public sealed class PreviewPlayer : IDisposable
 {
     private readonly BgmDucker ducker;
+    private readonly BgmDucker volume;
 
     private bool ours;
 
-    public PreviewPlayer(BgmDucker ducker) => this.ducker = ducker;
+    public PreviewPlayer(BgmDucker ducker, BgmDucker volume)
+    {
+        this.ducker = ducker;
+        this.volume = volume;
+    }
 
     /// <summary>The track loaded into the player, sounding or not.</summary>
     public Song? Current { get; private set; }
@@ -48,14 +53,39 @@ public sealed class PreviewPlayer : IDisposable
         if (Plugin.Config.DuckGameMusic)
             ducker.Duck(Plugin.Config.DuckedMusicVolume);
 
+        // The orchestrion bus is held at the preview volume for as long as the preview runs, and
+        // handed back untouched afterwards. Holding rather than setting is what stops the plugin
+        // from permanently rewriting a slider the player never asked it to touch.
+        volume.Duck(Plugin.Config.PreviewVolume);
+
         if (!OrchestrionSampler.Play(song.Id))
         {
             LastError = "The game would not start that track.";
+            volume.Restore();
             ducker.Restore();
             return;
         }
 
         ours = true;
+
+        // Before the first frame, or the track begins at whatever spot the game had left in the
+        // sampler and audibly slides into place.
+        OrchestrionEmitter.PinToListener();
+    }
+
+    /// <summary>
+    /// Moves the preview volume while it is playing, without disturbing what gets restored.
+    /// </summary>
+    /// <remarks>
+    /// The slider used to write to the settings and stop there. Nothing read it back, so it was a
+    /// number in a file that happened to be drawn on screen.
+    /// </remarks>
+    public void SetVolume(float level)
+    {
+        Plugin.Config.PreviewVolume = Math.Clamp(level, 0f, 1f);
+
+        if (volume.IsDucked)
+            volume.Duck(Plugin.Config.PreviewVolume);
     }
 
     public void Stop()
@@ -64,16 +94,17 @@ public sealed class PreviewPlayer : IDisposable
             OrchestrionSampler.Stop();
 
         ours = false;
+        volume.Restore();
         ducker.Restore();
     }
 
     /// <summary>
-    /// Notices a track that stopped without us, so the music comes back without a button press.
+    /// Keeps the preview where the listener is, and notices a track that stopped without us.
     /// </summary>
     /// <remarks>
-    /// Called every frame a window is up. Without it, a preview that ends on its own leaves the
-    /// game's music ducked until somebody happens to press stop — the exact failure this is all
-    /// arranged to prevent, arriving by the one route that needs no mistake to reach.
+    /// Called every frame, from the game's update rather than from drawing — a preview outlives
+    /// the window it was started from, and tying this to drawing meant closing the window left the
+    /// music ducked and the emitter stranded until somebody happened to open it again.
     /// </remarks>
     public void Poll()
     {
@@ -83,7 +114,12 @@ public sealed class PreviewPlayer : IDisposable
         // Unknown means the game could not be asked this frame, which is not the same as silent.
         // Treating it as stopped would cut a preview short on a hiccup.
         if (OrchestrionSampler.State == SamplerState.Silent)
+        {
             Stop();
+            return;
+        }
+
+        OrchestrionEmitter.PinToListener();
     }
 
     public void Dispose() => Stop();

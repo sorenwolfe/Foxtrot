@@ -52,7 +52,9 @@ answers "what should I go and find?" rather than just "what exists?".
 
 **A small player.** One button that plays or stops depending on what's happening, a volume
 slider separate from your game volume, and a star. It reads the game's own playback state, so if
-someone's orchestrion is going it says so rather than offering to stop music that isn't yours.
+someone's orchestrion is going it says so rather than offering to stop music that isn't yours. The
+volume slider drives the game's orchestrion channel and hands it back exactly as it found it, so it
+moves the preview and nothing else.
 
 **Your zone music gets out of the way.** While a preview plays, the game's music fades down, and
 it fades back the moment you stop — including if you unload the plugin halfway through a track.
@@ -63,6 +65,11 @@ down it goes, in settings.
 makes when you audition a roll. So it sounds exactly like owning the roll would, respects your
 audio setup, and the buttons reflect what the game is actually doing rather than what the plugin
 last asked for.
+
+**And it follows you.** That sampler is built for furniture, so the game plays it from a fixed spot
+on the floor and fades it out as you walk away — correct for an orchestrion in a room, useless for
+a preview. The sound is kept on top of your camera instead, so it plays at full volume wherever you
+go.
 
 **It looks like RaidPlan.** Same dark panels, same accent colour, same soft shadows. One switch in
 settings turns it off if you'd rather it matched your other plugins.
@@ -115,9 +122,11 @@ first — the wording matters:
 If it comes up empty, something went wrong reading them — the count is shown at the bottom of the
 settings window, and there'll be a line in the Dalamud log.
 
-**My music is quiet after using it.** It shouldn't ever be — the music is restored when a preview
-stops, when the track ends, and when the plugin unloads. If you do manage it, please open an issue
-and say what you were doing, because that's the bug I most want to hear about.
+**My music is quiet after using it.** It shouldn't be. This did happen up to 0.3.1: the volume was
+read back through the game's *effective* volume, which folds in your master slider, so with master
+at 50% a full music bus read as half — and restoring wrote that half back. Every preview quietly
+halved your music again. It now reads and writes the channel's own setting, which round-trips. If
+you still manage it, please open an issue and say what you were doing.
 
 ---
 

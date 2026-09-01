@@ -47,10 +47,6 @@ public sealed class PlayerWindow : Window, IDisposable
                 18f * UiHelpers.Scale, 0.45f);
         }
 
-        // The track may have stopped since the last frame; noticing here is what gives the game's
-        // music back without anyone pressing anything.
-        player.Poll();
-
         if (player.Current is not { } current)
         {
             DrawEmpty();
@@ -145,7 +141,9 @@ public sealed class PlayerWindow : Window, IDisposable
         if (!ImGui.SliderFloat("##volume", ref percent, 0f, 100f, "Volume  %.0f%%", ImGuiSliderFlags.None))
             return;
 
-        Plugin.Config.PreviewVolume = Math.Clamp(percent / 100f, 0f, 1f);
+        // Through the player, so a slider moved mid-track is heard immediately rather than
+        // only applying to whatever gets played next.
+        Plugin.Preview.SetVolume(percent / 100f);
         Plugin.SaveConfig();
     }
 
