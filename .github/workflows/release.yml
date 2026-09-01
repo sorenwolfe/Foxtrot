@@ -11,6 +11,10 @@ jobs:
   release:
     runs-on: windows-latest
 
+    # A step `if:` cannot read the secrets context; going through env can.
+    env:
+      AGGREGATOR_TOKEN: ${{ secrets.AGGREGATOR_TOKEN }}
+
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -111,12 +115,12 @@ jobs:
       # outright. Waiting for a schedule left that window open, so the release closes it itself.
       # Without the token this is skipped, and the scheduled rebuild picks it up as before.
       - name: Tell the shared plugin list to rebuild
-        if: ${{ secrets.AGGREGATOR_TOKEN != '' }}
+        if: env.AGGREGATOR_TOKEN != ''
         shell: pwsh
         run: |
           $headers = @{
             Accept        = "application/vnd.github+json"
-            Authorization = "Bearer ${{ secrets.AGGREGATOR_TOKEN }}"
+            Authorization = "Bearer $env:AGGREGATOR_TOKEN"
           }
           Invoke-RestMethod -Method Post -Headers $headers `
             -Uri "https://api.github.com/repos/sorenwolfe/XIVPlugins/dispatches" `

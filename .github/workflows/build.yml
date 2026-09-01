@@ -14,6 +14,45 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      # An invalid workflow file does not fail — it simply never runs, and nothing anywhere says
+      # so. A `secrets` reference inside a step `if:` is rejected at parse time and takes the whole
+      # file with it, which is how several tagged releases quietly produced nothing at all.
+      - name: Check the workflows are valid
+        shell: python
+        run: |
+          import pathlib, subprocess, sys
+
+          try:
+              import yaml
+          except ImportError:
+              subprocess.run([sys.executable, "-m", "pip", "install", "-q", "pyyaml"], check=True)
+              import yaml
+
+          problems = []
+
+          for path in sorted(pathlib.Path(".github/workflows").glob("*.y*ml")):
+              try:
+                  yaml.safe_load(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  problems.append(f"{path}: will not parse — {exc}")
+                  continue
+
+              for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                  stripped = line.strip()
+                  if stripped.startswith("if:") and "secrets." in stripped:
+                      problems.append(
+                          f"{path}:{number}: a step `if:` cannot read the secrets context, and "
+                          f"using it there makes the whole file invalid so nothing runs. Put the "
+                          f"secret in a job-level `env:` and test that instead.")
+
+              if not any(str(path) in problem for problem in problems):
+                  print(f"{path}: ok")
+
+          for problem in problems:
+              print(f"::error::{problem}")
+
+          sys.exit(1 if problems else 0)
+
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
