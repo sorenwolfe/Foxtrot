@@ -117,11 +117,23 @@ public sealed class PlayerWindow : Window, IDisposable
     private void DrawTransport(Song current)
     {
         var playing = player.IsPlaying;
-        var height = ImGui.GetFrameHeight() * 1.3f;
+        var height = ImGui.GetFrameHeight() * 1.5f;
+        var square = new Vector2(height, height);
 
         // One button that does the obvious thing, rather than a Play and a Stop where only one is
         // ever meaningful and the other sits there looking broken.
-        if (UiHelpers.AccentButton(playing ? "Stop" : "Play", new Vector2(height * 2.6f, height)))
+        ImGui.PushStyleColor(ImGuiCol.Button, Palette.Vec(Palette.Accent, 0.95f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Palette.Vec(Palette.Accent));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Palette.Vec(Palette.Accent, 0.8f));
+
+        var transport = Controls.TransportButton("transport", square, playing);
+
+        ImGui.PopStyleColor(3);
+
+        if (ImGui.IsItemHovered())
+            UiHelpers.Tooltip(playing ? "Stop" : "Play");
+
+        if (transport)
         {
             if (playing)
                 player.Stop();
@@ -131,8 +143,18 @@ public sealed class PlayerWindow : Window, IDisposable
 
         ImGui.SameLine();
 
+        // No fill of its own: a star sitting on a button-shaped slab reads as two controls.
+        ImGui.PushStyleColor(ImGuiCol.Button, Palette.Vec(Palette.Text, 0f));
+
         var star = Plugin.Config.IsFavourite(current.Id);
-        if (ImGui.Button(star ? "Starred" : "Star", new Vector2(height * 2.6f, height)))
+        var toggled = Controls.StarButton("star", square, star);
+
+        ImGui.PopStyleColor();
+
+        if (ImGui.IsItemHovered())
+            UiHelpers.Tooltip(star ? "Remove from starred" : "Add to starred");
+
+        if (toggled)
         {
             Plugin.Config.ToggleFavourite(current.Id);
             Plugin.SaveConfig();
@@ -151,19 +173,24 @@ public sealed class PlayerWindow : Window, IDisposable
         ImGui.TextColored(Palette.Vec(playing ? Palette.Text : Palette.TextDim), trailing);
     }
 
-    private void DrawVolume()
+    /// <summary>
+    /// A speaker and a track with a handle, the way volume is dragged everywhere else.
+    /// </summary>
+    /// <remarks>
+    /// The stored value is 0 to 1 throughout now, so there is no percentage conversion left to get
+    /// wrong. Formatting a 0-1 value with a percent sign was the original bug, and the surest fix
+    /// for a conversion is not having one.
+    /// </remarks>
+    private static void DrawVolume()
     {
-        // Stored 0-1, shown 0-100. Formatting the stored value with a percent sign was the bug:
-        // the whole range rendered as 0% or 1%, so the slider looked broken while working.
-        var percent = Plugin.Config.PreviewVolume * 100f;
+        var level = Plugin.Config.PreviewVolume;
 
-        ImGui.SetNextItemWidth(-1);
-        if (!ImGui.SliderFloat("##volume", ref percent, 0f, 100f, "Volume  %.0f%%", ImGuiSliderFlags.None))
+        if (!Controls.VolumeSlider("volume", ref level, ImGui.GetContentRegionAvail().X))
             return;
 
         // Through the player, so a slider moved mid-track is heard immediately rather than
         // only applying to whatever gets played next.
-        Plugin.Preview.SetVolume(percent / 100f);
+        Plugin.Preview.SetVolume(level);
         Plugin.SaveConfig();
     }
 

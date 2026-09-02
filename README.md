@@ -57,10 +57,12 @@ answers "what should I go and find?" rather than just "what exists?".
 
 **A player that looks like one.** The track name is the biggest thing in the window, an equalizer
 runs under it, and a running time counts up beside one button that plays or stops depending on
-what's happening. It reads the game's own playback state, so if someone's orchestrion is going it
-says so rather than offering to stop music that isn't yours. The volume slider drives the game's
-orchestrion channel and hands it back exactly as it found it, so it moves the preview and nothing
-else.
+what's happening — a triangle or a square, not the words. The star fills in when a track is
+starred, and the volume is a speaker and a handle you drag.
+
+It reads the game's own playback state, so if someone else's orchestrion is going it says so rather
+than offering to stop music that isn't yours. The volume drives the game's orchestrion channel and
+hands it back exactly as it found it, so it moves the preview and nothing else.
 
 **The bars are ornament, and I'd rather say so.** The game's sampler exposes no amplitude and no
 spectrum, so nothing can follow the actual music. What they report honestly is whether something
@@ -141,7 +143,7 @@ reporting.
 first — the wording matters:
 
 - *"Distributed plugin version does not match repo version"* has two causes. Either `repo.json`
-  was bumped and no release was tagged — tag one: `git tag v0.6.3` then `git push --tags` — or the
+  was bumped and no release was tagged — tag one: `git tag v0.7.0` then `git push --tags` — or the
   plugin list Dalamud has cached is older than the release. The second one used to be unavoidable,
   because the download link pointed at `releases/latest`: any cached list then advertised one
   version and was handed a newer one. Links are pinned to their own tag from 0.6.3 on, so a stale
